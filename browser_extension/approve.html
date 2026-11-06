@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>允许 Shiori 连接</title><link rel="stylesheet" href="style.css">
+<main><div class="mark">栞</div><h1>只连接到你的本机。</h1>
+<p>Shiori 请求读取 Pixiv 的 PHPSESSID 登录会话，并将它发送到：</p>
+<code id="destination"></code>
+<p>允许后，Shiori 可以读取你有权访问的小说。扩展不会保存 Cookie，也不会将会话发送到远程服务。连接信息只在本次浏览器会话中短暂保留，5 分钟后失效。</p>
+<p><strong>仅在你刚刚从 Shiori 发起登录时继续。</strong>不认识这个请求？直接关闭此页。</p>
+<button id="login">允许连接，并打开 Pixiv 登录</button>
+<button id="connect" class="secondary">我已登录，连接当前会话</button>
+<p id="status" role="status"></p><p class="small">登录后若没有自动完成，请回到此页点击「连接当前会话」。完成后关闭本页并回到 Shiori。</p></main>
+<script src="validation.js"></script><script src="approve.js"></script></html>

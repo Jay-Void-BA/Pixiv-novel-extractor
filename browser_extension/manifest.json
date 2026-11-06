@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Shiori Bridge — Pixiv 本机会话连接",
+  "version": "1.0.0",
+  "description": "经你确认，将 Pixiv 登录会话传给本机 Shiori。无远程服务器，不保存密码或 Cookie。",
+  "permissions": ["cookies", "storage"],
+  "host_permissions": ["https://*.pixiv.net/*", "http://127.0.0.1/*"],
+  "background": {"service_worker": "background.js"},
+  "content_scripts": [{"matches": ["http://127.0.0.1/*"], "js": ["validation.js", "content.js"]}],
+  "action": {"default_title": "Shiori Bridge：请从 Shiori 发起连接"},
+  "minimum_chrome_version": "122"
+}

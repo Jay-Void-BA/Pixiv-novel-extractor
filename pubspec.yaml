@@ -1,0 +1,38 @@
+name: shiori
+description: A private, cross-platform Pixiv novel extractor built with Flutter.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.9.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  http: ^1.5.0
+  html: ^0.15.6
+  pdf: ^3.11.3
+  url_launcher: ^6.3.2
+  webview_flutter: ^4.13.0
+  file_selector: ^1.0.4
+  cross_file: ^0.3.5
+  share_plus: ^12.0.0
+  path_provider: ^2.1.5
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/NotoSansSC-Regular.ttf
+    - assets/fonts/OFL.txt
+  fonts:
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.ttf

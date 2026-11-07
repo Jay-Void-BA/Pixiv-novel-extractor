@@ -10,15 +10,12 @@ void main() {
       SessionVault(android: false, now: () => time ?? now);
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
-  test(
-    'system vault restores a saved record across instances',
-    () async {
-      await vault().write('synthetic_system_session_12345');
-      expect((await vault().read()).session, 'synthetic_system_session_12345');
-      await vault().delete();
-      expect((await vault().read()).session, isNull);
-    },
-  );
+  test('system vault restores a saved record across instances', () async {
+    await vault().write('synthetic_system_session_12345');
+    expect((await vault().read()).session, 'synthetic_system_session_12345');
+    await vault().delete();
+    expect((await vault().read()).session, isNull);
+  });
 
   test('system record expires at thirty days and is deleted', () async {
     await vault().write('synthetic_system_session_12345');

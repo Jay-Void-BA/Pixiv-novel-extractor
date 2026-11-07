@@ -12,24 +12,29 @@ class RestoredSession {
 
 /// Platform vaults own encryption keys; Dart never handles raw key bytes.
 class SessionVault {
-  SessionVault({bool? android, FlutterSecureStorage? storage, DateTime Function()? now,
-    this.storageKey = defaultStorageKey})
-      : _android = android ?? Platform.isAndroid,
-        _storage = storage ?? const FlutterSecureStorage(
-          iOptions: IOSOptions(
-            accountName: 'io.github.jayvoid.shiori',
-            accessibility: KeychainAccessibility.unlocked_this_device,
-            synchronizable: false,
-          ),
-          // Distributed macOS builds have no provisioning profile or shared group.
-          mOptions: MacOsOptions(
-            accountName: 'io.github.jayvoid.shiori',
-            usesDataProtectionKeychain: false,
-            synchronizable: false,
-          ),
-          wOptions: WindowsOptions(useBackwardCompatibility: false),
-        ),
-        _now = now ?? DateTime.now;
+  SessionVault({
+    bool? android,
+    FlutterSecureStorage? storage,
+    DateTime Function()? now,
+    this.storageKey = defaultStorageKey,
+  }) : _android = android ?? Platform.isAndroid,
+       _storage =
+           storage ??
+           const FlutterSecureStorage(
+             iOptions: IOSOptions(
+               accountName: 'io.github.jayvoid.shiori',
+               accessibility: KeychainAccessibility.unlocked_this_device,
+               synchronizable: false,
+             ),
+             // Distributed macOS builds have no provisioning profile or shared group.
+             mOptions: MacOsOptions(
+               accountName: 'io.github.jayvoid.shiori',
+               usesDataProtectionKeychain: false,
+               synchronizable: false,
+             ),
+             wOptions: WindowsOptions(useBackwardCompatibility: false),
+           ),
+       _now = now ?? DateTime.now;
 
   static const channel = MethodChannel('shiori/session_vault');
   static const defaultStorageKey = 'io.github.jayvoid.shiori.pixiv-session.v1';
@@ -65,15 +70,21 @@ class SessionVault {
       try {
         if (encoded.length > 4096) throw const FormatException();
         final data = jsonDecode(encoded);
-        if (data is! Map || data['version'] != 1 ||
-            data['session'] is! String || data['savedAt'] is! int ||
-            data['expiresAt'] is! int) throw const FormatException();
+        if (data is! Map ||
+            data['version'] != 1 ||
+            data['session'] is! String ||
+            data['savedAt'] is! int ||
+            data['expiresAt'] is! int) {
+          throw const FormatException();
+        }
         final session = data['session'] as String;
         final saved = data['savedAt'] as int;
         final expires = data['expiresAt'] as int;
         final now = _now().millisecondsSinceEpoch;
         if (!RegExp(r'^[A-Za-z0-9_%.-]{8,512}$').hasMatch(session) ||
-            saved <= 0 || saved > now || expires <= now ||
+            saved <= 0 ||
+            saved > now ||
+            expires <= now ||
             expires != saved + maxAge.inMilliseconds) {
           throw const FormatException();
         }
@@ -106,8 +117,12 @@ class SessionVault {
       return;
     }
     final saved = _now().millisecondsSinceEpoch;
-    final encoded = jsonEncode({'version': 1, 'session': session,
-      'savedAt': saved, 'expiresAt': saved + maxAge.inMilliseconds});
+    final encoded = jsonEncode({
+      'version': 1,
+      'session': session,
+      'savedAt': saved,
+      'expiresAt': saved + maxAge.inMilliseconds,
+    });
     await _platform(() async {
       try {
         await _storage.write(key: storageKey, value: encoded);

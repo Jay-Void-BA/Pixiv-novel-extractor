@@ -16,9 +16,13 @@ import 'session_vault.dart';
 
 class PlatformBridge {
   PlatformBridge({bool? supportsSessionStorage, SessionVault? vault})
-    : supportsSessionStorage = supportsSessionStorage ??
-          (Platform.isAndroid || Platform.isIOS || Platform.isMacOS ||
-              Platform.isWindows || Platform.isLinux),
+    : supportsSessionStorage =
+          supportsSessionStorage ??
+          (Platform.isAndroid ||
+              Platform.isIOS ||
+              Platform.isMacOS ||
+              Platform.isWindows ||
+              Platform.isLinux),
       _vault = vault ?? SessionVault();
   final http.Client client = http.Client();
   HttpServer? _loginServer;

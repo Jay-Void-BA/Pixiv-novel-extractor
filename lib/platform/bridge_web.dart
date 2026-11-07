@@ -50,8 +50,11 @@ class PlatformBridge {
   String? get activeSession => loggedIn ? 'local-proxy-session' : null;
 
   Future<void> setRememberSession(bool enabled) async {
-    final response = await _control.post(Uri.base.resolve('/api/remember'),
-      headers: _headers, body: jsonEncode({'enabled': enabled}));
+    final response = await _control.post(
+      Uri.base.resolve('/api/remember'),
+      headers: _headers,
+      body: jsonEncode({'enabled': enabled}),
+    );
     if (response.statusCode != 200) {
       throw const PixivException('本机系统密钥库不可用或未解锁，无法更新安全保存设置。');
     }
@@ -71,6 +74,7 @@ class PlatformBridge {
     await logout();
     if (remember) await setRememberSession(true);
   }
+
   int _loginGeneration = 0;
   Future<void> init() async {
     try {

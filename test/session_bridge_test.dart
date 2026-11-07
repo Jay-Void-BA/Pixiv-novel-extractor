@@ -14,7 +14,10 @@ void main() {
   setUp(() {
     stored = null;
     calls = [];
-    bridge = PlatformBridge(supportsSessionStorage: true, vault: SessionVault(android: true));
+    bridge = PlatformBridge(
+      supportsSessionStorage: true,
+      vault: SessionVault(android: true),
+    );
     messenger.setMockMethodCallHandler(SessionVault.channel, (call) async {
       calls.add(call.method);
       switch (call.method) {

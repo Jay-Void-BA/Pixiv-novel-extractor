@@ -13,8 +13,10 @@
 - 保留作者、原文链接与作品简介的选项；所选章节合并成一个文件。
 - 转换 Pixiv 章节、分页、注音、跳转与插图标记；未知标记原样保留。
 - 明确要求登录时打开登录流程，并重试一次。登录、验证码与访问权限由 Pixiv 控制。
-- 顺序读取、限速、429 / 服务错误有限重试、取消操作；任何所选章节失败都不会保存半份文件。
-- 会话与正文缓存只驻留内存，无遥测，无第三方小说转发后端。
+- 最多 3 个并发请求、全局请求间隔与共享冷却；正文按原始目录顺序合并，失败不保存半份文件。
+- 有上限和过期时间的正文缓存，重复提取缓存章节无需等待或重新请求。
+- Android 可选择安全保存登录：AES-256-GCM + Android Keystore，最长 30 天；默认仅保留在内存。
+- 不保存 Pixiv 密码，无遥测，无第三方小说转发后端。
 
 ![桌面界面](docs/screenshot-desktop.png)
 
@@ -63,6 +65,8 @@ FreeBSD 不在 [Flutter 官方原生支持列表](https://docs.flutter.dev/refer
 
 登录不会解锁原本无权访问、已删除或受限制的作品。403 也可能是风控，不会无限循环登录。退出会话会清除应用会话、正文缓存及待保存文件；已导出文件与外部浏览器的登录状态由你管理。
 
+Android 右上角「会话与帮助」→「在此设备安全保存登录」可开启自动恢复。可在登录前开启，也可保存当前会话。密钥在设备 Keystore 中生成且不可导出，密文存放在不参与备份的应用私有目录；关闭选项或退出登录会删除密文和密钥。过期、损坏或失去设备密钥的会话会被丢弃。其他平台继续仅在内存保留会话。详见 [安全存储与性能说明](docs/SECURITY_AND_PERFORMANCE.md)。
+
 ### iOS 自行签名
 
 CI 使用 `flutter build ios --release --no-codesign`，交付未签名 `.app` ZIP，不能当作可直接安装的 IPA。推荐从源码安装：
@@ -87,6 +91,7 @@ flutter analyze --fatal-infos
 flutter test --coverage
 python3 -m unittest discover -s test -p 'test_*.py' -v
 node --test test/extension_test.cjs
+dart run tool/benchmark_client.dart # 模拟网络基准，不使用真实账号
 flutter run -d linux  # 也可用 macos / windows / 设备 ID
 ```
 
@@ -168,7 +173,7 @@ Pixiv 的 Web AJAX 接口未公开且可能变化；参考 [PixivNow 接口记�
 
 ## 隐私与许可
 
-请求仅发往 Pixiv 及本机服务。无遥测、远程日志、账号注册或凭据云存储。退出清除内存数据。本地服务限制 Host / Origin、固定上游接口并拒绝目录穿越；连接令牌不写入访问日志。
+请求仅发往 Pixiv 及本机服务。无遥测、远程日志、账号注册或凭据云存储。默认会话只驻留内存；Android 可主动开启本机加密保存，退出会删除保存的会话密钥并清除内存缓存。本地服务限制 Host / Origin、固定上游接口并拒绝目录穿越；连接令牌不写入访问日志。
 
 应用源码 [BSD-2-Clause](LICENSE)；字体 [SIL Open Font License](assets/fonts/OFL.txt)。依赖的开源许可随 Flutter 构建产物分发。
 

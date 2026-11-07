@@ -35,6 +35,7 @@ class State:
         self.web_root = web_root.resolve()
         self.token = secrets.token_urlsafe(32)
         self.session: str | None = None
+        self.session_generation = 0
         self.pair_token: str | None = None
         self.pair_deadline = 0.0
         self.lock = threading.Lock()
@@ -68,13 +69,17 @@ class Handler(BaseHTTPRequestHandler):
             return True, origin
         return False, None
 
-    def _respond(self, status, data=b"", mime="application/json", cors=None):
+    def _respond(self, status, data=b"", mime="application/json", cors=None, retry_after=None):
         if not isinstance(data, bytes):
             data = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", mime)
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-store")
+        # Only this narrowly validated upstream header is relayed, never cookies or redirects.
+        if retry_after and re.fullmatch(
+                r"(?:\d{1,10}|[A-Za-z]{3}, \d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}:\d{2} GMT)", retry_after):
+            self.send_header("Retry-After", retry_after)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
@@ -153,6 +158,7 @@ class Handler(BaseHTTPRequestHandler):
                    "User-Agent": "Mozilla/5.0 Shiori/1.0"}
         with self.state.lock:
             if self.state.session: headers["Cookie"] = "PHPSESSID=" + self.state.session
+            generation = self.state.session_generation
         request = urllib.request.Request("https://www.pixiv.net" + path, headers=headers)
         opener = urllib.request.build_opener(NoRedirect())
         try:
@@ -160,11 +166,16 @@ class Handler(BaseHTTPRequestHandler):
                 data = result.read(MAX_RESPONSE + 1)
                 if len(data) > MAX_RESPONSE:
                     self._respond(502, {"error": True, "message": "response too large"}); return
+                with self.state.lock:
+                    stale = generation != self.state.session_generation
+                if stale:
+                    self._respond(409, {"error": True, "message": "session changed"}); return
                 self._respond(result.status, data)
         except urllib.error.HTTPError as error:
             # Do not relay upstream HTML, Set-Cookie, redirect targets, or headers.
             self._respond(error.code if error.code in {401, 403, 404, 429} else 502,
-                          {"error": True, "message": "upstream rejected request"})
+                          {"error": True, "message": "upstream rejected request"},
+                          retry_after=error.headers.get("Retry-After") if error.headers else None)
         except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException):
             self._respond(502, {"error": True, "message": "upstream unavailable"})
 
@@ -186,6 +197,7 @@ class Handler(BaseHTTPRequestHandler):
                 except (ValueError, TimeoutError, OSError):
                     self._respond(400, cors=cors); return
                 self.state.session = session
+                self.state.session_generation += 1
                 self.state.pair_token = None  # A pairing token can be consumed only once.
             self._respond(200, {"ok": True}, cors=cors); return
         if not self._authorized():
@@ -193,6 +205,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/login":
             with self.state.lock:
                 self.state.session = None
+                self.state.session_generation += 1
                 self.state.pair_token = secrets.token_urlsafe(32)
                 self.state.pair_deadline = time.monotonic() + 300
                 url = f"http://127.0.0.1:{self.server.server_port}/pair#{self.state.pair_token}"
@@ -202,7 +215,9 @@ class Handler(BaseHTTPRequestHandler):
                 data = self._json_body()
                 session = data.get("session") if isinstance(data, dict) else None
                 if not isinstance(session, str) or not SESSION.fullmatch(session): raise ValueError()
-                with self.state.lock: self.state.session = session
+                with self.state.lock:
+                    self.state.session = session
+                    self.state.session_generation += 1
                 self._respond(200, {"ok": True})
             except (ValueError, TimeoutError, OSError): self._respond(400)
             return
@@ -216,7 +231,9 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(404); return
         with self.state.lock:
             self.state.pair_token = None
-            if self.path == "/api/session": self.state.session = None
+            if self.path == "/api/session":
+                self.state.session = None
+                self.state.session_generation += 1
         self._respond(200, {"ok": True})
 
 

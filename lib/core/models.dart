@@ -140,11 +140,13 @@ class Cancellation {
     return () => _listeners.remove(listener);
   }
 
-  Future<T> bind<T>(Future<T> future) async {
+  Future<T> bind<T>(Future<T> future, {Cancellation? also}) async {
     final result = Completer<T>();
-    final remove = listen(() {
+    void stop() {
       if (!result.isCompleted) result.completeError(const Cancelled());
-    });
+    }
+    final remove = listen(stop);
+    final removeOther = also?.listen(stop);
     future.then(
       (value) {
         if (!result.isCompleted) result.complete(value);
@@ -157,6 +159,7 @@ class Cancellation {
       return await result.future;
     } finally {
       remove();
+      removeOther?.call();
     }
   }
 

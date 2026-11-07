@@ -72,7 +72,7 @@ class PixivClient {
     Future<T> task,
     Cancellation cancel,
     Cancellation identity,
-  ) => cancel.bind(identity.bind(task));
+  ) => cancel.bind(task, also: identity);
 
   Future<void> _wait(
     Duration duration,
@@ -282,7 +282,10 @@ class PixivClient {
     try {
       return await (cancel == null ? pending.future : cancel.bind(pending.future));
     } finally {
-      if (--pending.readers == 0) pending.cancel.cancel();
+      if (--pending.readers == 0) {
+        if (identical(_pending[id], pending)) _pending.remove(id);
+        pending.cancel.cancel();
+      }
     }
   }
 

@@ -35,10 +35,12 @@ Pixiv-novel-extractor/
 │       ├── bridge_native.dart     # 原生网络、桌面会话连接与系统保存
 │       ├── bridge_web.dart        # 浏览器下载与本机服务通信
 │       ├── bridge_stub.dart       # 不支持平台的回退实现
+│       ├── session_vault.dart     # Android 加密会话存储通道，不接触原始密钥
 │       └── mobile_login.dart      # 移动端官方登录页与 WebView 会话
 ├── android/                       # Gradle、Manifest、Kotlin 入口和资源
 │   ├── app/build.gradle.kts
-│   ├── app/src/main/
+│   ├── app/src/main/              # MainActivity、SessionVault、Manifest 与资源
+│   ├── app/src/androidTest/       # 真正调用 Android Keystore 的安全测试
 │   └── gradle/wrapper/gradle-wrapper.properties
 ├── ios/                           # iOS 宿主工程与平台测试
 │   ├── Flutter/
@@ -96,6 +98,7 @@ Pixiv-novel-extractor/
     ├── FREEBSD.md                 # 本地 Web / FreeBSD 运行说明
     ├── RELEASE_NOTES.md           # 多平台完整 Release 的说明模板
     ├── ANDROID_SIGNING.md         # 首次正式发布与本地密钥 / Secrets 配置
+    ├── SECURITY_AND_PERFORMANCE.md # 加密会话、请求队列与验证方法
     ├── VALIDATION.md              # 原始交付验证记录
     ├── MIGRATION.md               # Drive 迁移来源与本次复核
     ├── PROJECT_STRUCTURE.md       # 本文
@@ -105,9 +108,11 @@ Pixiv-novel-extractor/
 
 ## 模块关系
 
-界面将用户输入交给 `WorkLink` 校验，再由 `PixivClient` 加载作品与系列目录。用户选择章节后，客户端按目录顺序读取正文，`NovelExporter` 调用正文转换逻辑生成 TXT 或 PDF，最后交给平台桥接保存或分享。任一选中章节读取失败时，导出流程中止。
+界面将用户输入交给 `WorkLink` 校验，再由 `PixivClient` 加载作品与系列目录。用户选择章节后，客户端通过受限并发队列读取正文，并按目录顺序组装结果，`NovelExporter` 生成 TXT 或 PDF，最后交给平台桥接保存或分享。任一选中章节读取失败时，导出流程中止。
 
 手机通过应用内官方登录页建立会话；桌面通过浏览器扩展与本机连接页传递已获授权的会话。Web 版本需要随包 Python 服务，不能用普通静态托管替代。详细会话行为见 [使用方法](USAGE.zh-CN.md) 与 [扩展说明](../browser_extension/README.md)。
+
+Android 主动开启安全保存时，`bridge_native.dart` → `session_vault.dart` → Kotlin `SessionVault`。Keystore 负责 AES 密钥和加解密，密文写入应用的 `noBackupFilesDir`。APK 的发布签名与此设备会话密钥彼此独立。
 
 ## 生成目录
 

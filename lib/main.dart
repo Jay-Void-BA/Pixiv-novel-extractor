@@ -168,7 +168,7 @@ class _ExtractorPageState extends State<ExtractorPage> {
                       ),
                       SizedBox(height: 12),
                       Text(
-                        '不保存密码，会话仅驻留内存。此连接将在 5 分钟后失效。',
+                        '不保存账号密码。会话仅在本机使用，安全保存由会话菜单设置决定。此连接将在 5 分钟后失效。',
                         style: TextStyle(color: muted, fontSize: 12),
                       ),
                     ],
@@ -298,7 +298,7 @@ class _ExtractorPageState extends State<ExtractorPage> {
       await _bridge.logout();
       if (mounted) {
         setState(() {
-          _notice = '已清除登录会话、保存的密钥及正文缓存。';
+          _notice = '已清除登录会话、安全保存的数据及正文缓存。';
         });
       }
     } catch (e) {
@@ -342,7 +342,7 @@ class _ExtractorPageState extends State<ExtractorPage> {
           _error = null;
           _notice = enabled
               ? (_bridge.loggedIn ? '当前会话已加密保存。' : '已开启，下一次登录后将加密保存会话。')
-              : '已删除保存的会话和密钥。本次登录仅保留在内存。';
+              : '已删除安全保存的会话。本次登录仅保留在内存。';
         });
       }
     } catch (e) {
@@ -570,8 +570,8 @@ class _ExtractorPageState extends State<ExtractorPage> {
           '支持单篇与系列小说提取，选择章节后按原始顺序合并为 TXT 或 PDF。\n\n'
           '只提取你有权阅读的作品。不可访问、已删除或受限的章节不会被绕过。'
           '插图保留为原文链接或占位文字。\n\n'
-          '默认仅在内存保留会话。Android 可选择加密保存登录，最长 30 天。'
-          '不使用第三方转发服务。退出会话会删除保存的密钥并清除缓存；'
+          '默认仅在内存保留会话。可选择通过系统安全存储保存登录，最长 30 天。'
+          '不使用第三方转发服务。退出会话会删除保存的登录信息并清除缓存；'
           '导出的文件由你自行管理。\n\n'
           'FreeBSD 使用 Flutter Web 与仅监听本机的 Python 服务。',
         ),

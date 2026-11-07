@@ -42,16 +42,35 @@ class PlatformBridge {
   final _control = http.Client();
   String? _token;
   bool loggedIn = false;
-  bool get supportsSessionStorage => false;
-  bool get rememberSession => false;
-  String? get startupNotice => null;
+  bool _supportsSessionStorage = false;
+  bool _rememberSession = false;
+  String? startupNotice;
+  bool get supportsSessionStorage => _supportsSessionStorage;
+  bool get rememberSession => _rememberSession;
   String? get activeSession => loggedIn ? 'local-proxy-session' : null;
 
   Future<void> setRememberSession(bool enabled) async {
-    throw const PixivException('Web 版不在浏览器中持久保存登录会话。');
+    final response = await _control.post(Uri.base.resolve('/api/remember'),
+      headers: _headers, body: jsonEncode({'enabled': enabled}));
+    if (response.statusCode != 200) {
+      throw const PixivException('本机系统密钥库不可用或未解锁，无法更新安全保存设置。');
+    }
+    _readStatus(jsonDecode(response.body) as Map);
   }
 
-  Future<void> invalidateSession() => logout();
+  void _readStatus(Map data, {bool reportError = true}) {
+    loggedIn = data['loggedIn'] == true;
+    _rememberSession = data['rememberSession'] == true;
+    if (reportError && data['storageError'] == true) {
+      throw const PixivException('会话已连接，但安全保存失败。本次仅保留在本地服务内存，请解锁系统密钥库后重试。');
+    }
+  }
+
+  Future<void> invalidateSession() async {
+    final remember = _rememberSession;
+    await logout();
+    if (remember) await setRememberSession(true);
+  }
   int _loginGeneration = 0;
   Future<void> init() async {
     try {
@@ -61,7 +80,12 @@ class PlatformBridge {
       if (response.statusCode != 200) throw const FormatException();
       final config = jsonDecode(response.body) as Map<String, dynamic>;
       _token = config['token'] as String;
-      loggedIn = config['loggedIn'] == true;
+      _supportsSessionStorage = config['supportsSessionStorage'] == true;
+      startupNotice = config['startupNotice'] as String?;
+      _readStatus(config, reportError: false);
+      if (config['storageError'] == true) {
+        startupNotice = '会话仅保留在本地服务内存，安全保存失败。请解锁系统密钥库后重试。';
+      }
     } catch (_) {
       throw const PixivException('请通过随包提供的本地服务启动 Web 版。普通静态托管无法访问 Pixiv 接口。');
     }
@@ -95,10 +119,11 @@ class PlatformBridge {
           Uri.base.resolve('/api/session'),
           headers: _headers,
         );
-        if (status.statusCode == 200 &&
-            (jsonDecode(status.body) as Map)['loggedIn'] == true) {
-          loggedIn = true;
-          return 'local-proxy-session'; // The actual cookie never enters the web UI.
+        if (status.statusCode == 200) {
+          _readStatus(jsonDecode(status.body) as Map);
+          if (loggedIn) {
+            return 'local-proxy-session'; // The actual cookie never enters the web UI.
+          }
         }
       }
       return null;
@@ -126,10 +151,12 @@ class PlatformBridge {
       body: jsonEncode({'session': value}),
     );
     if (response.statusCode != 200) throw const PixivException('本地服务拒绝了会话。');
-    loggedIn = true;
+    _readStatus(jsonDecode(response.body) as Map);
   }
 
   Future<void> logout() async {
+    loggedIn = false;
+    _rememberSession = false;
     await cancelLogin();
     final response = await _control.delete(
       Uri.base.resolve('/api/session'),
@@ -138,7 +165,6 @@ class PlatformBridge {
     if (response.statusCode != 200) {
       throw const PixivException('本地服务未能清除会话，请关闭本地服务。');
     }
-    loggedIn = false;
   }
 
   Future<bool> save(ExportFile file, {Rect? shareOrigin}) async {

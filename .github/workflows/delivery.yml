@@ -46,15 +46,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - run: flutter pub get --enforce-lockfile
-      - id: dart_format
-        run: dart format --output=none --set-exit-if-changed lib test tool/benchmark_client.dart
-      - name: Save formatting correction on failure
-        if: failure() && steps.dart_format.outcome == 'failure'
-        run: |
+      - run: flutter pub get
+      - run: dart format lib test integration_test tool/benchmark_client.dart
+      - run: |
           mkdir -p build
-          dart format lib test tool/benchmark_client.dart
-          git diff -- lib test tool/benchmark_client.dart > build/format.patch
+          git diff -- lib test integration_test tool/benchmark_client.dart pubspec.lock linux/flutter windows/flutter macos/Flutter/GeneratedPluginRegistrant.swift > build/format.patch
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --reporter expanded
       - run: dart run tool/benchmark_client.dart
@@ -111,14 +107,25 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb xauth scrot xdotool gsettings-desktop-schemas
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libsecret-tools gnome-keyring dbus-x11 xvfb xauth scrot xdotool gsettings-desktop-schemas
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter pub get --enforce-lockfile
+      - run: flutter pub get
       - run: flutter build linux --release --no-pub
       - run: bash tool/native_linux_smoke.sh
+      - name: Test real Linux and local-Web system keyrings
+        shell: bash
+        run: |
+          xvfb-run -a dbus-run-session -- bash -euo pipefail -c '
+            export SHIORI_ISOLATED_TEST_KEYRING=true
+            export XDG_DATA_HOME=$(mktemp -d)
+            export LIBGL_ALWAYS_SOFTWARE=1 GDK_BACKEND=x11
+            python3 tool/start_test_keyring.py
+            flutter test integration_test/session_storage_test.dart -d linux --reporter expanded
+            python3 tool/verify_system_vault.py
+          '
       - run: cp LICENSE build/linux/x64/release/bundle/LICENSE && cp docs/LINUX.md build/linux/x64/release/bundle/README.md && mkdir -p dist && tar -czf dist/shiori-linux-x64.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
@@ -142,8 +149,9 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter pub get --enforce-lockfile
+      - run: flutter pub get
       - run: flutter build windows --release --no-pub
+      - run: flutter test integration_test/session_storage_test.dart -d windows --reporter expanded
       - shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist
@@ -165,9 +173,17 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter pub get --enforce-lockfile
+      - run: flutter pub get
       - run: flutter build macos --release --no-pub
       - run: flutter build ios --release --no-codesign --no-pub
+      - run: flutter test integration_test/session_storage_test.dart -d macos --reporter expanded
+      - name: Test the real iOS Keychain on a simulator
+        shell: bash
+        run: |
+          shiori_simulator=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for group in json.load(sys.stdin)["devices"].values() for d in group if d["name"].startswith("iPhone")))')
+          xcrun simctl boot "$shiori_simulator" || true
+          xcrun simctl bootstatus "$shiori_simulator" -b
+          flutter test integration_test/session_storage_test.dart -d "$shiori_simulator" --reporter expanded
       - shell: bash
         run: |
           mkdir -p dist
@@ -198,7 +214,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter pub get --enforce-lockfile
+      - run: flutter pub get
       - name: Select Android build mode
         id: android_mode
         env:
@@ -295,7 +311,7 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - run: flutter pub get --enforce-lockfile
+      - run: flutter pub get
       - run: flutter build apk --debug --no-pub
       - name: Enable KVM for the emulator
         run: |

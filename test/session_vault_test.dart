@@ -7,7 +7,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  final vault = SessionVault();
+  final vault = SessionVault(android: true);
   tearDown(
     () => messenger.setMockMethodCallHandler(SessionVault.channel, null),
   );

@@ -5,9 +5,13 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
+import os
 import mimetypes
 import re
 import secrets
+import shutil
+import subprocess
+import sys
 import threading
 import time
 import urllib.error
@@ -24,6 +28,132 @@ SESSION = re.compile(r"[A-Za-z0-9_%.-]{8,512}$")
 EXTENSION_ORIGIN = re.compile(r"(?:chrome|moz)-extension://[A-Za-z0-9-]+$")
 
 
+class VaultError(Exception):
+    """Safe error: never carry backend output or credential values."""
+
+
+class SystemVault:
+    """Optional OS keyring, never a plaintext file or browser storage fallback."""
+    SERVICE = 'io.github.jayvoid.shiori.local-web'
+    ACCOUNT = 'pixiv-session-v1'
+    MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+
+    def __init__(self, *, enabled=True):
+        self.command = None
+        self.backend = None
+        if not enabled:
+            return
+        if sys.platform.startswith(('linux', 'freebsd')) and os.environ.get('DBUS_SESSION_BUS_ADDRESS'):
+            self.command = shutil.which('secret-tool')
+        if self.command:
+            return
+        # Select known OS backends explicitly; never load keyrings.alt/plaintext
+        # or an automatically selected third-party/chained backend.
+        try:
+            if sys.platform == 'win32':
+                from keyring.backends.Windows import WinVaultKeyring
+                backend = WinVaultKeyring()
+            elif sys.platform == 'darwin':
+                from keyring.backends.macOS import Keyring
+                backend = Keyring()
+            else:
+                from keyring.backends.SecretService import Keyring
+                backend = Keyring()
+            if backend.priority > 0:
+                self.backend = backend
+        except Exception:
+            pass
+
+    @property
+    def supported(self):
+        return self.command is not None or self.backend is not None
+
+    def _secret_tool(self, action, value=None):
+        arguments = [self.command, action]
+        if action == 'store':
+            arguments.append('--label=Shiori Pixiv session')
+        arguments.extend(['application', self.SERVICE, 'account', self.ACCOUNT])
+        try:
+            result = subprocess.run(arguments, input=value.encode() if value is not None else None,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5, check=False)
+            if result.returncode == 1 and not result.stderr and action in {'lookup', 'clear'}:
+                return None
+            if result.returncode or len(result.stdout) > 4096:
+                raise VaultError()
+            return result.stdout.decode('utf-8').rstrip('\n') if action == 'lookup' else None
+        except Exception:
+            raise VaultError('System secure storage unavailable') from None
+
+    def _read_value(self):
+        if self.command:
+            return self._secret_tool('lookup')
+        return self.backend.get_password(self.SERVICE, self.ACCOUNT)
+
+    def _write_value(self, value):
+        if self.command:
+            self._secret_tool('store', value)
+        else:
+            self.backend.set_password(self.SERVICE, self.ACCOUNT, value)
+
+    def _delete_value(self):
+        if self.command:
+            self._secret_tool('clear')
+        elif self.backend.get_password(self.SERVICE, self.ACCOUNT) is not None:
+            self.backend.delete_password(self.SERVICE, self.ACCOUNT)
+
+    def read(self):
+        if not self.supported:
+            return None, False
+        try:
+            value = self._read_value()
+        except Exception:
+            raise VaultError('System secure storage unavailable') from None
+        if value is None:
+            return None, False
+        try:
+            if not isinstance(value, str) or len(value) > 4096:
+                raise ValueError()
+            data = json.loads(value)
+            now = int(time.time() * 1000)
+            if (not isinstance(data, dict) or type(data.get('version')) is not int or data['version'] != 1
+                    or not isinstance(data.get('session'), str) or not SESSION.fullmatch(data['session'])
+                    or type(data.get('savedAt')) is not int or type(data.get('expiresAt')) is not int
+                    or not 0 < data['savedAt'] <= now < data['expiresAt']
+                    or data['expiresAt'] != data['savedAt'] + self.MAX_AGE_MS):
+                raise ValueError()
+            return data['session'], False
+        except (ValueError, TypeError):
+            self.delete()
+            return None, True
+
+    def write(self, session):
+        if not self.supported or not SESSION.fullmatch(session):
+            raise VaultError('System secure storage unavailable')
+        saved = int(time.time() * 1000)
+        value = json.dumps({'version': 1, 'session': session, 'savedAt': saved,
+                           'expiresAt': saved + self.MAX_AGE_MS})
+        try:
+            self._write_value(value)
+            if self._read_value() != value:
+                raise VaultError()
+        except Exception:
+            try:
+                self._delete_value()
+            except Exception:
+                pass
+            raise VaultError('System secure storage unavailable') from None
+
+    def delete(self):
+        if not self.supported:
+            return
+        try:
+            self._delete_value()
+            if self._read_value() is not None:
+                raise VaultError()
+        except Exception:
+            raise VaultError('Unable to delete saved session') from None
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         # Never forward a Pixiv session to an unexpected redirect target.
@@ -31,17 +161,67 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class State:
-    def __init__(self, web_root: Path):
+    def __init__(self, web_root: Path, vault=None):
         self.web_root = web_root.resolve()
         self.token = secrets.token_urlsafe(32)
         self.session: str | None = None
         self.session_generation = 0
         self.pair_token: str | None = None
         self.pair_deadline = 0.0
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
+        self.vault = vault if vault is not None else SystemVault()
+        self.remember_session = False
+        self.storage_error = False
+        self.startup_notice = None
+        try:
+            self.session, discarded = self.vault.read()
+            self.remember_session = self.session is not None
+            if self.session:
+                self.startup_notice = '已从本机系统密钥库恢复会话，将在请求时验证有效性。'
+            elif discarded:
+                self.startup_notice = '保存的会话已过期或无法验证，已清除，请重新登录。'
+        except VaultError:
+            self.startup_notice = '无法读取系统密钥库。请解锁密钥库；当前仅使用内存会话。'
+
+    def status(self):
+        with self.lock:
+            return {'loggedIn': self.session is not None, 'rememberSession': self.remember_session,
+                    'storageError': self.storage_error}
+
+    def install_session(self, value):
+        with self.lock:
+            self.session = value
+            self.session_generation += 1
+            self.storage_error = False
+            if self.remember_session:
+                try:
+                    self.vault.write(value)
+                except VaultError:
+                    self.remember_session = False
+                    self.storage_error = True
+
+    def clear_session(self, *, forget=False):
+        with self.lock:
+            self.session = None
+            self.session_generation += 1
+            self.storage_error = False
+            if forget:
+                self.remember_session = False
+            self.vault.delete()
+
+    def set_remember(self, enabled):
+        with self.lock:
+            if not self.vault.supported:
+                raise VaultError('System secure storage unavailable')
+            if enabled and self.session:
+                self.vault.write(self.session)
+            if not enabled:
+                self.vault.delete()
+            self.remember_session = enabled
+            self.storage_error = False
 
 
-PAIR_HTML = b'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shiori Bridge</title><style>body{font:17px/1.9 system-ui;background:#f6f7f3;color:#243b36;max-width:640px;margin:12vh auto;padding:32px}button{padding:14px 22px;background:#1f6a53;color:white;border:0;border-radius:8px;font-size:17px}</style><h1>Shiori Bridge</h1><p>Install the bundled Shiori Bridge extension, then refresh this page. Click the connect button below and approve the connection on the extension page. Sign in on the official Pixiv website.</p><p>The session is sent only to this local app and held in memory. This pairing expires in five minutes. Do not share this page URL.</p></html>'''
+PAIR_HTML = b'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Shiori Bridge</title><style>body{font:17px/1.9 system-ui;background:#f6f7f3;color:#243b36;max-width:640px;margin:12vh auto;padding:32px}button{padding:14px 22px;background:#1f6a53;color:white;border:0;border-radius:8px;font-size:17px}</style><h1>Shiori Bridge</h1><p>Install the bundled Shiori Bridge extension, then refresh this page. Click the connect button below and approve the connection on the extension page. Sign in on the official Pixiv website.</p><p>The session is sent only to this local app. Secure login saving is controlled by the app settings. This pairing expires in five minutes. Do not share this page URL.</p></html>'''
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -124,12 +304,14 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(403); return
         url = urllib.parse.urlsplit(self.path)
         if url.path == "/api/config":
-            self._respond(200, {"token": self.state.token, "loggedIn": self.state.session is not None}); return
+            self._respond(200, {"token": self.state.token, **self.state.status(),
+                "supportsSessionStorage": self.state.vault.supported,
+                "startupNotice": self.state.startup_notice}); return
         if url.path.startswith("/api/"):
             if not self._authorized():
                 self._respond(403); return
             if url.path == "/api/session":
-                self._respond(200, {"loggedIn": self.state.session is not None}); return
+                self._respond(200, self.state.status()); return
             if url.path == "/api/pixiv":
                 paths = urllib.parse.parse_qs(url.query).get("path", [])
                 if len(paths) != 1 or not PIXIV_PATH.fullmatch(paths[0]):
@@ -196,16 +378,17 @@ class Handler(BaseHTTPRequestHandler):
                     if not isinstance(session, str) or not SESSION.fullmatch(session): raise ValueError()
                 except (ValueError, TimeoutError, OSError):
                     self._respond(400, cors=cors); return
-                self.state.session = session
-                self.state.session_generation += 1
+                self.state.install_session(session)
                 self.state.pair_token = None  # A pairing token can be consumed only once.
-            self._respond(200, {"ok": True}, cors=cors); return
+            self._respond(200, {"ok": True, **self.state.status()}, cors=cors); return
         if not self._authorized():
             self._respond(403); return
         if self.path == "/api/login":
+            try:
+                self.state.clear_session()
+            except VaultError:
+                self._respond(503, {"error": True, "message": "secure storage unavailable"}); return
             with self.state.lock:
-                self.state.session = None
-                self.state.session_generation += 1
                 self.state.pair_token = secrets.token_urlsafe(32)
                 self.state.pair_deadline = time.monotonic() + 300
                 url = f"http://127.0.0.1:{self.server.server_port}/pair#{self.state.pair_token}"
@@ -215,11 +398,22 @@ class Handler(BaseHTTPRequestHandler):
                 data = self._json_body()
                 session = data.get("session") if isinstance(data, dict) else None
                 if not isinstance(session, str) or not SESSION.fullmatch(session): raise ValueError()
-                with self.state.lock:
-                    self.state.session = session
-                    self.state.session_generation += 1
-                self._respond(200, {"ok": True})
+                self.state.install_session(session)
+                self._respond(200, {"ok": True, **self.state.status()})
             except (ValueError, TimeoutError, OSError): self._respond(400)
+            return
+        if self.path == '/api/remember':
+            try:
+                data = self._json_body()
+                enabled = data.get('enabled') if isinstance(data, dict) else None
+                if type(enabled) is not bool:
+                    raise ValueError()
+                self.state.set_remember(enabled)
+                self._respond(200, self.state.status())
+            except (ValueError, TimeoutError, OSError):
+                self._respond(400)
+            except VaultError:
+                self._respond(503, {'error': True, 'message': 'secure storage unavailable'})
             return
         self._respond(404)
 
@@ -231,16 +425,18 @@ class Handler(BaseHTTPRequestHandler):
             self._respond(404); return
         with self.state.lock:
             self.state.pair_token = None
-            if self.path == "/api/session":
-                self.state.session = None
-                self.state.session_generation += 1
+        if self.path == "/api/session":
+            try:
+                self.state.clear_session(forget=True)
+            except VaultError:
+                self._respond(503, {'error': True, 'message': 'unable to delete saved session'}); return
         self._respond(200, {"ok": True})
 
 
-def create_server(web_root: Path, port=0):
+def create_server(web_root: Path, port=0, *, vault=None):
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     server.daemon_threads = True
-    server.state = State(web_root)
+    server.state = State(web_root, vault=vault)
     return server
 
 
@@ -254,7 +450,7 @@ def main():
         parser.error("Web build missing: use the Release bundle, or pass --web-root build/web")
     server = create_server(args.web_root, args.port)
     url = f"http://127.0.0.1:{server.server_port}/"
-    print(f"Shiori is running locally: {url}\nPress Ctrl+C to stop and clear the session.", flush=True)
+    print(f"Shiori is running locally: {url}\nPress Ctrl+C to stop. Log out in the app to remove saved login.", flush=True)
     if not args.no_browser: webbrowser.open(url)
     try: server.serve_forever()
     except KeyboardInterrupt: pass

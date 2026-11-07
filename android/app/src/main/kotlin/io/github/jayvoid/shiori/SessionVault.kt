@@ -14,7 +14,10 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Device-bound authenticated encryption. No password or raw key is written to disk. */
-class SessionVault(context: Context, private val now: () -> Long = System::currentTimeMillis) {
+class SessionVault(context: Context,
+    private val keyAlias: String = KEY_ALIAS,
+    private val fileName: String = FILE_NAME,
+    private val now: () -> Long = System::currentTimeMillis) {
     companion object {
         const val FILE_NAME = "pixiv-session-v1.bin"
         const val KEY_ALIAS = "io.github.jayvoid.shiori.pixiv-session.v1"
@@ -24,11 +27,11 @@ class SessionVault(context: Context, private val now: () -> Long = System::curre
         private val SESSION = Regex("^[A-Za-z0-9_%.-]{8,512}$")
     }
 
-    private val file = AtomicFile(File(context.noBackupFilesDir, FILE_NAME))
+    private val file = AtomicFile(File(context.noBackupFilesDir, fileName))
     private fun keyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
     private fun newKey(): SecretKey = KeyGenerator.getInstance("AES", "AndroidKeyStore").run {
-        init(KeyGenParameterSpec.Builder(KEY_ALIAS,
+        init(KeyGenParameterSpec.Builder(keyAlias,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
             .setKeySize(256)
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -45,7 +48,7 @@ class SessionVault(context: Context, private val now: () -> Long = System::curre
         val plain = JSONObject().put("session", session).put("savedAt", savedAt)
             .put("expiresAt", savedAt + MAX_AGE_MS).toString().toByteArray(Charsets.UTF_8)
         try {
-            val key = (keyStore().getKey(KEY_ALIAS, null) as? SecretKey) ?: newKey()
+            val key = (keyStore().getKey(keyAlias, null) as? SecretKey) ?: newKey()
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             // Let the provider generate a fresh random nonce on EVERY write.
             cipher.init(Cipher.ENCRYPT_MODE, key)
@@ -88,7 +91,7 @@ class SessionVault(context: Context, private val now: () -> Long = System::curre
                 require(count in 30..4096 && bytes[0] == VERSION)
                 bytes.copyOf(count)
             }
-            val key = keyStore().getKey(KEY_ALIAS, null) as? SecretKey
+            val key = keyStore().getKey(keyAlias, null) as? SecretKey
                 ?: throw IllegalStateException("Missing device key")
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, encrypted.copyOfRange(1, 13)))
@@ -116,7 +119,7 @@ class SessionVault(context: Context, private val now: () -> Long = System::curre
     @Synchronized
     fun clear() {
         try {
-            keyStore().deleteEntry(KEY_ALIAS)
+            keyStore().deleteEntry(keyAlias)
         } finally {
             file.delete()
         }

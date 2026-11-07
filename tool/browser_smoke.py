@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "freebsd"))
-from shiori_server import create_server
+from shiori_server import SystemVault, create_server
 
 
 def fill_flutter_input(page, field, value, expect):
@@ -58,7 +58,7 @@ def main():
     parser.add_argument("--screenshots", type=Path, default=ROOT / "build/browser-results")
     args = parser.parse_args()
     args.screenshots.mkdir(parents=True, exist_ok=True)
-    server = create_server(ROOT / "build/web")
+    server = create_server(ROOT / "build/web", vault=SystemVault(enabled=False))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 

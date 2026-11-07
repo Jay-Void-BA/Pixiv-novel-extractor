@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shiori/main.dart';
 
 void main() {
+  setUp(() => FlutterSecureStorage.setMockInitialValues({}));
   for (final width in [390.0, 1440.0]) {
     testWidgets('usable empty state at width $width', (tester) async {
       tester.view.physicalSize = Size(width, 1000);

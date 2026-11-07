@@ -15,12 +15,15 @@ import 'mobile_login.dart';
 import 'session_vault.dart';
 
 class PlatformBridge {
-  PlatformBridge({bool? supportsSessionStorage})
-    : supportsSessionStorage = supportsSessionStorage ?? Platform.isAndroid;
+  PlatformBridge({bool? supportsSessionStorage, SessionVault? vault})
+    : supportsSessionStorage = supportsSessionStorage ??
+          (Platform.isAndroid || Platform.isIOS || Platform.isMacOS ||
+              Platform.isWindows || Platform.isLinux),
+      _vault = vault ?? SessionVault();
   final http.Client client = http.Client();
   HttpServer? _loginServer;
   Completer<String?>? _loginResult;
-  final _vault = SessionVault();
+  final SessionVault _vault;
   String? _session;
   bool loggedIn = false;
   bool rememberSession = false;
@@ -238,4 +241,4 @@ class PlatformBridge {
 }
 
 const pairingHtml =
-    '''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接 Shiori</title><style>body{font:17px/1.9 system-ui;background:#f6f5f1;color:#242a31;max-width:640px;margin:12vh auto;padding:32px}h1{font-size:34px}p{color:#53616a}#shiori-connect{padding:14px 22px;background:#176755;color:white;border:0;border-radius:10px;font-size:17px;cursor:pointer}</style><h1>连接你的 Pixiv 会话</h1><p>这是 Shiori 在本机打开的临时登录页面。安装随应用提供的 Shiori Bridge 浏览器扩展后，此处会出现连接按钮。点击按钮，在 Pixiv 官方网站完成登录，并在扩展的确认页允许将会话发送给本机应用。</p><p>会话仅保留在内存中；不会上传到第三方服务器。请不要向他人分享此页面的地址。</p><p>尚未安装扩展？请按 Release 中 browser-bridge.zip 的说明安装，随后刷新此页。也可返回应用选择「导入会话」。</p><p>连接有效期：5 分钟。取消登录请返回应用。</p></html>''';
+    '''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接 Shiori</title><style>body{font:17px/1.9 system-ui;background:#f6f5f1;color:#242a31;max-width:640px;margin:12vh auto;padding:32px}h1{font-size:34px}p{color:#53616a}#shiori-connect{padding:14px 22px;background:#176755;color:white;border:0;border-radius:10px;font-size:17px;cursor:pointer}</style><h1>连接你的 Pixiv 会话</h1><p>这是 Shiori 在本机打开的临时登录页面。安装随应用提供的 Shiori Bridge 浏览器扩展后，此处会出现连接按钮。点击按钮，在 Pixiv 官方网站完成登录，并在扩展的确认页允许将会话发送给本机应用。</p><p>会话仅在本机使用；是否安全保存由应用会话设置决定，不会上传到第三方服务器。请不要向他人分享此页面的地址。</p><p>尚未安装扩展？请按 Release 中 browser-bridge.zip 的说明安装，随后刷新此页。也可返回应用选择「导入会话」。</p><p>连接有效期：5 分钟。取消登录请返回应用。</p></html>''';

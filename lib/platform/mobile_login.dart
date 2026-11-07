@@ -92,7 +92,7 @@ class _MobileLoginState extends State<MobileLogin> {
           child: Text(
             widget.rememberSession
                 ? '在 Pixiv 官方页面登录。会话将加密保存在此设备，最长 30 天。Shiori 不保存账号密码。'
-                : '在 Pixiv 官方页面登录。会话默认仅保留在内存。Android 可在会话菜单开启安全保存。',
+                : '在 Pixiv 官方页面登录。会话默认仅保留在内存，可在会话菜单开启安全保存。',
             style: const TextStyle(fontSize: 12),
           ),
         ),

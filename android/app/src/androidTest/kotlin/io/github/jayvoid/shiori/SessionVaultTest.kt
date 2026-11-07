@@ -18,9 +18,14 @@ import javax.crypto.SecretKeyFactory
 
 @RunWith(AndroidJUnit4::class)
 class SessionVaultTest {
+    private val TEST_FILE_NAME = "integration-session-v1.bin"
+    private val TEST_KEY_ALIAS = "io.github.jayvoid.shiori.test-session.v1"
+    private fun newVault(now: () -> Long = System::currentTimeMillis) =
+        SessionVault(context, keyAlias = TEST_KEY_ALIAS, fileName = TEST_FILE_NAME, now = now)
+
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val vault = SessionVault(context)
-    private val file = File(context.noBackupFilesDir, SessionVault.FILE_NAME)
+    private val vault = newVault()
+    private val file = File(context.noBackupFilesDir, TEST_FILE_NAME)
     private val session = "synthetic_session_12345678"
 
     @Before fun before() { vault.clear() }
@@ -28,10 +33,10 @@ class SessionVaultTest {
 
     @Test fun roundTripAfterRecreationUsesNonExportable256BitKey() {
         vault.write(session)
-        assertEquals(session, SessionVault(context).read()["session"])
+        assertEquals(session, newVault().read()["session"])
         assertFalse(String(file.readBytes(), Charsets.UTF_8).contains(session))
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        val key = store.getKey(SessionVault.KEY_ALIAS, null) as SecretKey
+        val key = store.getKey(TEST_KEY_ALIAS, null) as SecretKey
         assertNull(key.encoded)
         val info = SecretKeyFactory.getInstance("AES", "AndroidKeyStore")
             .getKeySpec(key, KeyInfo::class.java) as KeyInfo
@@ -65,7 +70,7 @@ class SessionVaultTest {
         vault.write(session)
         KeyStore.getInstance("AndroidKeyStore").apply {
             load(null)
-            deleteEntry(SessionVault.KEY_ALIAS)
+            deleteEntry(TEST_KEY_ALIAS)
         }
         assertEquals(true, vault.read()["discarded"])
         assertCleared()
@@ -83,8 +88,8 @@ class SessionVaultTest {
 
     @Test fun expirationAndUnsupportedVersionFailClosed() {
         val start = System.currentTimeMillis()
-        SessionVault(context) { start }.write(session)
-        assertEquals(true, SessionVault(context) {
+        newVault { start }.write(session)
+        assertEquals(true, newVault {
             start + SessionVault.MAX_AGE_MS
         }.read()["discarded"])
         assertCleared()
@@ -111,6 +116,6 @@ class SessionVaultTest {
     private fun assertCleared() {
         assertFalse(file.exists())
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        assertFalse(store.containsAlias(SessionVault.KEY_ALIAS))
+        assertFalse(store.containsAlias(TEST_KEY_ALIAS))
     }
 }

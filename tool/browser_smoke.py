@@ -77,16 +77,17 @@ def main():
             # Flutter exposes this intentionally hidden DOM button for assistive tools.
             page.locator("flt-semantics-placeholder").evaluate("(node)=>node.click()")
             source = page.get_by_role("textbox").first
-            source.click()
-            source.press_sequentially("https://www.pixiv.net/novel/series/123", delay=15)
+            source.fill("https://www.pixiv.net/novel/series/123")
             page.get_by_role("button", name="读取作品").click()
             print("Loaded request submitted", flush=True)
             page.get_by_text("山间来信 · 自编测试系列", exact=True).wait_for(timeout=15000)
             page.screenshot(path=str(args.screenshots / "screenshot-desktop.png"), full_page=True)
             expect(page.get_by_text("已选 4 / 4", exact=True)).to_be_visible()
             selection = page.get_by_role("textbox", name=re.compile("范围"))
-            selection.click()
-            selection.press_sequentially("2,4", delay=80)
+            # Fill emits one complete input event after focusing the field.
+            # Per-key typing can race Flutter's text-editing attachment and
+            # lose its first character on a slower hosted runner.
+            selection.fill("2,4")
             expect(selection).to_have_value("2,4")
             page.get_by_role("button", name="应用", exact=True).click()
             expect(page.get_by_text("已选 2 / 4", exact=True)).to_be_visible(timeout=10000)

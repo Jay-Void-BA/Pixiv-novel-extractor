@@ -107,8 +107,13 @@ class _ExtractorPageState extends State<ExtractorPage> {
   Future<void> _initialize() async {
     try {
       await _bridge.init();
-      if (_bridge.loggedIn) _api.setSession('local-proxy-session');
-      if (mounted) setState(() => _ready = true);
+      _api.setSession(_bridge.activeSession);
+      if (mounted) {
+        setState(() {
+          _ready = true;
+          _notice = _bridge.startupNotice;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     }
@@ -207,6 +212,8 @@ class _ExtractorPageState extends State<ExtractorPage> {
     try {
       return await action();
     } on LoginRequired {
+      _api.setSession(null);
+      await _bridge.invalidateSession();
       if (!mounted || !await _signIn()) throw const Cancelled();
       _cancellation?.check();
       return action(); // Retry once; never loop on an inaccessible work.
@@ -229,9 +236,11 @@ class _ExtractorPageState extends State<ExtractorPage> {
                 '备用方式：在已登录 Pixiv 的浏览器开发者工具 → Application / Storage → Cookies 中，复制 PHPSESSID 的值。',
               ),
               const SizedBox(height: 12),
-              const Text(
-                '该值具有账号访问权限，请勿分享。仅保留在本机内存，退出或关闭应用后清除。',
-                style: TextStyle(color: muted, fontSize: 12),
+              Text(
+                _bridge.rememberSession
+                    ? '该值具有账号访问权限，请勿分享。已开启此设备加密保存，最长 30 天；退出登录将清除。'
+                    : '该值具有账号访问权限，请勿分享。默认仅保留在内存，关闭应用后清除。',
+                style: const TextStyle(color: muted, fontSize: 12),
               ),
               const SizedBox(height: 18),
               TextField(
@@ -277,19 +286,65 @@ class _ExtractorPageState extends State<ExtractorPage> {
   }
 
   Future<void> _logout() async {
+    _api.setSession(null);
+    setState(() {
+      _loggingIn = true;
+      _work = null;
+      _selected = {};
+      _lastFile = null;
+      _error = null;
+    });
     try {
       await _bridge.logout();
-      _api.setSession(null);
       if (mounted) {
         setState(() {
-          _work = null;
-          _selected = {};
-          _lastFile = null;
-          _notice = '已清除会话及应用中的正文缓存。';
+          _notice = '已清除登录会话、保存的密钥及正文缓存。';
         });
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loggingIn = false);
+    }
+  }
+
+  Future<void> _toggleRememberSession() async {
+    final enabled = !_bridge.rememberSession;
+    if (enabled) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('在此设备安全保存登录'),
+          content: const Text(
+            '只保存 Pixiv 登录会话，不保存账号密码。会话会加密保存在此设备，最长 30 天；'
+            '下次打开应用自动恢复。可使用此设备的人也可能使用已保存的登录状态。'
+            '\n\n关闭此选项或退出登录会删除保存的会话。',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('开启安全保存')),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() => _loggingIn = true);
+    try {
+      await _bridge.setRememberSession(enabled);
+      if (mounted) {
+        setState(() {
+          _error = null;
+          _notice = enabled
+              ? (_bridge.loggedIn ? '当前会话已加密保存。' : '已开启，下一次登录后将加密保存会话。')
+              : '已删除保存的会话和密钥。本次登录仅保留在内存。';
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loggingIn = false);
     }
   }
 
@@ -507,12 +562,13 @@ class _ExtractorPageState extends State<ExtractorPage> {
       content: const SizedBox(
         width: 460,
         child: Text(
-          '为喜爱的文字，留一枚书签。\n\nShiori 1.0.0 · 使用 Flutter 构建。\n'
+          '为喜爱的文字，留一枚书签。\n\nShiori 1.1.0 · 使用 Flutter 构建。\n'
           '支持单篇与系列小说提取，选择章节后按原始顺序合并为 TXT 或 PDF。\n\n'
           '只提取你有权阅读的作品。不可访问、已删除或受限的章节不会被绕过。'
           '插图保留为原文链接或占位文字。\n\n'
-          '会话与正文缓存仅驻留内存，不使用第三方转发服务。'
-          '退出会话会清除缓存；保存的文件由你自行管理。\n\n'
+          '默认仅在内存保留会话。Android 可选择加密保存登录，最长 30 天。'
+          '不使用第三方转发服务。退出会话会删除保存的密钥并清除缓存；'
+          '导出的文件由你自行管理。\n\n'
           'FreeBSD 使用 Flutter Web 与仅监听本机的 Python 服务。',
         ),
       ),
@@ -750,7 +806,8 @@ class _ExtractorPageState extends State<ExtractorPage> {
         if (_bridge.loggedIn) ...[
           const Icon(Icons.check_circle, size: 15, color: accent),
           const SizedBox(width: 7),
-          const Text('已连接', style: TextStyle(fontSize: 12)),
+          Text(_bridge.rememberSession ? '登录已安全保存' : '已连接',
+            style: const TextStyle(fontSize: 12)),
         ] else
           TextButton.icon(
             onPressed: _busy || _loggingIn || !_ready ? null : _signIn,
@@ -766,9 +823,19 @@ class _ExtractorPageState extends State<ExtractorPage> {
             if (v == 'logout') {
               unawaited(_logout());
             }
+            if (v == 'remember') {
+              unawaited(_toggleRememberSession());
+            }
             if (v == 'help') _about();
           },
           itemBuilder: (_) => [
+            if (_bridge.supportsSessionStorage)
+              CheckedPopupMenuItem(
+                value: 'remember',
+                checked: _bridge.rememberSession,
+                enabled: !_busy && !_loggingIn && _ready,
+                child: const Text('在此设备安全保存登录'),
+              ),
             PopupMenuItem(
               value: 'import',
               enabled: !_busy && !_loggingIn && _ready,

@@ -27,6 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "io.github.jayvoid.shiori"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
@@ -65,4 +66,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }

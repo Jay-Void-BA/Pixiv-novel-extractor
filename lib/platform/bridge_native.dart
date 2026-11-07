@@ -12,20 +12,46 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../core/exporter.dart';
 import '../core/models.dart';
 import 'mobile_login.dart';
+import 'session_vault.dart';
 
 class PlatformBridge {
+  PlatformBridge({bool? supportsSessionStorage})
+      : supportsSessionStorage = supportsSessionStorage ?? Platform.isAndroid;
   final http.Client client = http.Client();
   HttpServer? _loginServer;
   Completer<String?>? _loginResult;
+  final _vault = SessionVault();
+  String? _session;
   bool loggedIn = false;
-  Future<void> init() async {}
+  bool rememberSession = false;
+  String? startupNotice;
+  final bool supportsSessionStorage;
+  String? get activeSession => _session;
+
+  Future<void> init() async {
+    if (!supportsSessionStorage) return;
+    try {
+      final restored = await _vault.read();
+      _session = restored.session;
+      loggedIn = _session != null;
+      rememberSession = loggedIn;
+      if (loggedIn) startupNotice = '已恢复加密保存的会话，将在请求时验证有效性。';
+      if (restored.discarded) {
+        startupNotice = '保存的会话已过期或无法验证，已清除，请重新登录。';
+      }
+    } catch (_) {
+      startupNotice = '无法读取系统安全存储。可重新登录；不会使用明文保存。';
+    }
+  }
 
   Future<String?> login(BuildContext context) async {
     if (Platform.isAndroid || Platform.isIOS) {
       try {
         return await Navigator.of(
           context,
-        ).push<String>(MaterialPageRoute(builder: (_) => const MobileLogin()));
+        ).push<String>(MaterialPageRoute(
+          builder: (_) => MobileLogin(rememberSession: rememberSession),
+        ));
       } finally {
         await WebViewCookieManager().clearCookies();
       }
@@ -125,11 +151,44 @@ class PlatformBridge {
   }
 
   Future<void> importSession(String value) async {
+    if (!RegExp(r'^[A-Za-z0-9_%.-]{8,512}$').hasMatch(value)) {
+      throw const FormatException('PHPSESSID 格式无效。只需粘贴该 Cookie 的值。');
+    }
+    _session = value;
     loggedIn = true;
+    if (rememberSession) {
+      try {
+        await _vault.write(value);
+      } catch (_) {
+        rememberSession = false;
+        throw const PixivException('会话已连接，但加密保存失败。本次仅保留在内存，请重试安全保存。');
+      }
+    }
+  }
+
+  Future<void> setRememberSession(bool enabled) async {
+    if (!supportsSessionStorage) {
+      throw const PixivException('此平台尚未提供安全会话存储。');
+    }
+    if (enabled) {
+      if (_session != null) await _vault.write(_session!);
+    } else {
+      await _vault.delete();
+    }
+    rememberSession = enabled;
+  }
+
+  Future<void> invalidateSession() async {
+    _session = null;
+    loggedIn = false;
+    if (supportsSessionStorage) await _vault.delete();
   }
 
   Future<void> logout() async {
     loggedIn = false;
+    _session = null;
+    rememberSession = false;
+    if (supportsSessionStorage) await _vault.delete();
     await cancelLogin();
     if (Platform.isIOS || Platform.isAndroid) {
       await WebViewCookieManager().clearCookies();
@@ -173,6 +232,7 @@ class PlatformBridge {
   }
 
   void dispose() {
+    _session = null;
     unawaited(cancelLogin());
   }
 }

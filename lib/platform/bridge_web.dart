@@ -22,7 +22,8 @@ class _LocalClient extends http.BaseClient {
     final uri = Uri.base
         .resolve('/api/pixiv')
         .replace(queryParameters: {'path': path});
-    final proxy = http.Request('GET', uri)
+    final proxy = http.AbortableRequest('GET', uri,
+      abortTrigger: request is http.Abortable ? request.abortTrigger : null)
       ..headers['Authorization'] = 'Bearer ${bridge._token}';
     return _inner.send(proxy);
   }
@@ -39,6 +40,16 @@ class PlatformBridge {
   final _control = http.Client();
   String? _token;
   bool loggedIn = false;
+  bool get supportsSessionStorage => false;
+  bool get rememberSession => false;
+  String? get startupNotice => null;
+  String? get activeSession => loggedIn ? 'local-proxy-session' : null;
+
+  Future<void> setRememberSession(bool enabled) async {
+    throw const PixivException('Web 版不在浏览器中持久保存登录会话。');
+  }
+
+  Future<void> invalidateSession() => logout();
   int _loginGeneration = 0;
   Future<void> init() async {
     try {

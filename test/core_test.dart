@@ -188,6 +188,7 @@ void main() {
               : ok(novelBody(r.url.pathSegments.last));
         }),
         pause: Duration.zero,
+        maxConcurrent: 1,
       );
       final work = Work(
         title: '合并',

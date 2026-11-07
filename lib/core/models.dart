@@ -1,3 +1,5 @@
+import 'dart:async';
+
 enum WorkKind { novel, series }
 
 class WorkLink {
@@ -116,7 +118,48 @@ class Cancelled implements Exception {
 
 class Cancellation {
   bool _cancelled = false;
-  void cancel() => _cancelled = true;
+  final _listeners = <void Function()>{};
+
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    final listeners = _listeners.toList();
+    _listeners.clear();
+    for (final listener in listeners) {
+      listener();
+    }
+  }
+
+  /// Returns a remover so completed requests do not retain cancellation listeners.
+  void Function() listen(void Function() listener) {
+    if (_cancelled) {
+      listener();
+      return () {};
+    }
+    _listeners.add(listener);
+    return () => _listeners.remove(listener);
+  }
+
+  Future<T> bind<T>(Future<T> future) async {
+    final result = Completer<T>();
+    final remove = listen(() {
+      if (!result.isCompleted) result.completeError(const Cancelled());
+    });
+    future.then(
+      (value) {
+        if (!result.isCompleted) result.complete(value);
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!result.isCompleted) result.completeError(error, stack);
+      },
+    );
+    try {
+      return await result.future;
+    } finally {
+      remove();
+    }
+  }
+
   void check() {
     if (_cancelled) throw const Cancelled();
   }

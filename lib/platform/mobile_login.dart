@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class MobileLogin extends StatefulWidget {
-  const MobileLogin({super.key});
+  const MobileLogin({super.key, this.rememberSession = false});
+  final bool rememberSession;
   @override
   State<MobileLogin> createState() => _MobileLoginState();
 }
@@ -88,9 +89,11 @@ class _MobileLoginState extends State<MobileLogin> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: const Text(
-            '在 Pixiv 官方页面输入账号与密码。Shiori 仅读取登录会话，并保留在本机内存中。',
-            style: TextStyle(fontSize: 12),
+          child: Text(
+            widget.rememberSession
+                ? '在 Pixiv 官方页面登录。会话将加密保存在此设备，最长 30 天。Shiori 不保存账号密码。'
+                : '在 Pixiv 官方页面登录。会话默认仅保留在内存。Android 可在会话菜单开启安全保存。',
+            style: const TextStyle(fontSize: 12),
           ),
         ),
         if (_error != null)

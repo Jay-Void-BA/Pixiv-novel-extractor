@@ -196,7 +196,11 @@ class _ExtractorPageState extends State<ExtractorPage> {
         return false;
       }
       _api.setSession(session);
-      await _bridge.importSession(session);
+      try {
+        await _bridge.importSession(session);
+      } finally {
+        _api.setSession(_bridge.activeSession);
+      }
       if (mounted) setState(() => _notice = '会话已连接。可继续提取账号有权阅读的小说。');
       return true;
     } catch (e) {
@@ -273,7 +277,11 @@ class _ExtractorPageState extends State<ExtractorPage> {
     if (session == null || !mounted) return;
     try {
       _api.setSession(session);
-      await _bridge.importSession(session);
+      try {
+        await _bridge.importSession(session);
+      } finally {
+        _api.setSession(_bridge.activeSession);
+      }
       if (mounted) {
         setState(() {
           _error = null;

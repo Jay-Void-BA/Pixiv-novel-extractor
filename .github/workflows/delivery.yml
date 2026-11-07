@@ -46,7 +46,7 @@ jobs:
       - run: python3 -m unittest discover -s test -p 'test_*.py' -v
       - run: node --test test/extension_test.cjs
       - run: flutter build web --release --no-pub --no-web-resources-cdn --no-wasm-dry-run
-      - run: python3 -m pip install playwright==1.56.0
+      - run: python3 -m pip install playwright==1.62.0
       - run: python3 -m playwright install --with-deps chromium
       - run: python3 tool/browser_smoke.py
       - run: python3 tool/package_web.py
@@ -57,6 +57,7 @@ jobs:
           path: dist/*
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: test-coverage-and-pdf
           path: |

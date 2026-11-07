@@ -103,7 +103,7 @@ python3 tool/package_extension.py
 可选浏览器集成测试（自行编写的模拟系列，验证真实 UI 与 TXT/PDF 下载）：
 
 ```sh
-python3 -m pip install playwright==1.56.0
+python3 -m pip install playwright==1.62.0
 python3 -m playwright install chromium
 python3 tool/browser_smoke.py
 ```

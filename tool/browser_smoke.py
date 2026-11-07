@@ -45,16 +45,35 @@ def main():
 
     try:
         with sync_playwright() as p:
+            # Hosted Linux runners do not have a usable hardware GPU. Select
+            # Chromium's software WebGL backend explicitly for CanvasKit.
             browser = p.chromium.launch(executable_path=args.browser, headless=True,
-                                         args=["--no-sandbox", "--disable-dev-shm-usage"])
+                                         args=["--no-sandbox", "--disable-dev-shm-usage",
+                                               "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
             page = browser.new_page(viewport={"width": 1440, "height": 1600}, device_scale_factor=1)
             errors = []
+            diagnostics = {"console": [], "failed_requests": [], "http_errors": []}
             page.on("pageerror", lambda e: errors.append(str(e)))
+            page.on("console", lambda message: diagnostics["console"].append(
+                {"type": message.type, "text": message.text}))
+            page.on("requestfailed", lambda request: diagnostics["failed_requests"].append(
+                {"url": request.url, "failure": request.failure}))
+            page.on("response", lambda response: diagnostics["http_errors"].append(
+                {"url": response.url, "status": response.status}) if response.status >= 400 else None)
             page.route("**/api/pixiv?*", fixture)
             # Fail closed if the UI unexpectedly tries to access Pixiv directly.
             page.route("https://*.pixiv.net/**", lambda route: route.abort())
             page.goto(f"http://127.0.0.1:{server.server_port}/")
-            page.locator("flutter-view").wait_for(timeout=60000)
+            try:
+                page.locator("flutter-view").wait_for(timeout=60000)
+            except Exception:
+                diagnostics["page_errors"] = errors
+                (args.screenshots / "startup-diagnostics.json").write_text(
+                    json.dumps(diagnostics, ensure_ascii=False, indent=2), encoding="utf-8")
+                (args.screenshots / "startup.html").write_text(page.content(), encoding="utf-8")
+                page.screenshot(path=str(args.screenshots / "startup-failure.png"), full_page=True)
+                print(json.dumps(diagnostics, ensure_ascii=False), flush=True)
+                raise
             # Flutter exposes this intentionally hidden DOM button for assistive tools.
             page.locator("flt-semantics-placeholder").evaluate("(node)=>node.click()")
             source = page.get_by_role("textbox").first

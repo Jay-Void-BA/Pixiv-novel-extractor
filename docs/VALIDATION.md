@@ -20,6 +20,6 @@
 - 当前环境的 Chromium 管理策略禁止加载未打包扩展；没有修改或绕过管理策略。扩展逻辑通过模拟浏览器 API 测试，真实加载与官方登录需在允许扩展的用户浏览器中验证。
 - 当前 Linux 环境无原生桌面工具链，且无系统包安装权限；原生 Linux、Android、Windows、macOS、iOS 构建应由仓库 Actions 执行。当前不能将这些任务描述为已通过。
 - FreeBSD 服务尚未在本地 FreeBSD 主机运行，工作流已配置 FreeBSD VM 测试。
-- GitHub 推送和 Release 需确认目标仓库与可见性。当前尚未上传代码、运行远程 CI 或创建 Release。
+- 已确认在 `Jay-Void-BA/Pixiv-novel-extractor` 公开发布，源码采用 BSD-2-Clause；远程 CI 和 Release 的结果以仓库 Actions / Releases 页面为准。
 
 复现命令见 README 和 `.github/workflows/delivery.yml`。CI 成功记录应以实际工作流运行页面为准。

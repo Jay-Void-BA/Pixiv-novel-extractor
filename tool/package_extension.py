@@ -11,6 +11,7 @@ staging.mkdir(parents=True)
 for browser in ["chromium", "firefox"]:
     target = staging / browser
     shutil.copytree(root / "browser_extension", target)
+    shutil.copy2(root / "LICENSE", target / "LICENSE")
     manifest = json.loads((target / "manifest.json").read_text())
     if browser == "firefox":
         manifest["background"] = {"scripts": ["validation.js", "background.js"]}
@@ -21,6 +22,7 @@ for browser in ["chromium", "firefox"]:
         }}
     (target / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
 shutil.copy2(root / "browser_extension/README.md", staging / "README.md")
+shutil.copy2(root / "LICENSE", staging / "LICENSE")
 dist = root / "dist"
 dist.mkdir(exist_ok=True)
 with zipfile.ZipFile(dist / "shiori-browser-bridge.zip", "w", zipfile.ZIP_DEFLATED) as out:

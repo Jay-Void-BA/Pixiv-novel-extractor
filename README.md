@@ -145,6 +145,6 @@ Pixiv 的 Web AJAX 接口未公开且可能变化；参考 [PixivNow 接口记�
 
 请求仅发往 Pixiv 及本机服务。无遥测、远程日志、账号注册或凭据云存储。退出清除内存数据。本地服务限制 Host / Origin、固定上游接口并拒绝目录穿越；连接令牌不写入访问日志。
 
-应用源码 [MIT](LICENSE)；字体 [SIL Open Font License](assets/fonts/OFL.txt)。依赖的开源许可随 Flutter 构建产物分发。
+应用源码 [BSD-2-Clause](LICENSE)；字体 [SIL Open Font License](assets/fonts/OFL.txt)。依赖的开源许可随 Flutter 构建产物分发。
 
 本项目与 Pixiv 无隶属关系。请仅保存有权访问的作品，尊重作者版权及平台约定，不再分发他人作品。

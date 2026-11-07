@@ -9,12 +9,46 @@ import json
 import re
 import sys
 import threading
+import time
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "freebsd"))
 from shiori_server import create_server
+
+
+def fill_flutter_input(page, field, value, expect):
+    """Wait for Flutter's asynchronous text-input attachment before editing.
+
+    A semantic input is focusable before Flutter has attached its input event
+    listener. A browser focus/value assertion alone cannot establish readiness.
+    CDP observes the listener without changing application state.
+    """
+    field.click()
+    expect(field).to_be_focused()
+    page.locator("[data-shiori-test-editor]").evaluate_all(
+        "(nodes)=>nodes.forEach(node=>node.removeAttribute('data-shiori-test-editor'))")
+    field.evaluate("(node)=>node.setAttribute('data-shiori-test-editor','active')")
+    cdp = page.context.new_cdp_session(page)
+    try:
+        remote = cdp.send("Runtime.evaluate", {
+            "expression": "document.querySelector('[data-shiori-test-editor]')",
+            "objectGroup": "shiori-editing",
+        })["result"]["objectId"]
+        deadline = time.monotonic() + 10
+        while True:
+            listeners = cdp.send("DOMDebugger.getEventListeners", {"objectId": remote})["listeners"]
+            if any(listener["type"] == "input" for listener in listeners):
+                break
+            if time.monotonic() >= deadline:
+                raise AssertionError("Flutter did not attach the text-input listener")
+            page.wait_for_timeout(50)
+        field.fill(value)
+        expect(field).to_have_value(value)
+    finally:
+        cdp.send("Runtime.releaseObjectGroup", {"objectGroup": "shiori-editing"})
+        cdp.detach()
 
 
 def main():
@@ -48,6 +82,7 @@ def main():
             # Hosted Linux runners do not have a usable hardware GPU. Select
             # Chromium's software WebGL backend explicitly for CanvasKit.
             browser = p.chromium.launch(executable_path=args.browser, headless=True,
+                                         channel=None if args.browser else "chromium",
                                          args=["--no-sandbox", "--disable-dev-shm-usage",
                                                "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
             page = browser.new_page(viewport={"width": 1440, "height": 1600}, device_scale_factor=1)
@@ -77,18 +112,14 @@ def main():
             # Flutter exposes this intentionally hidden DOM button for assistive tools.
             page.locator("flt-semantics-placeholder").evaluate("(node)=>node.click()")
             source = page.get_by_role("textbox").first
-            source.fill("https://www.pixiv.net/novel/series/123")
+            fill_flutter_input(page, source, "https://www.pixiv.net/novel/series/123", expect)
             page.get_by_role("button", name="读取作品").click()
             print("Loaded request submitted", flush=True)
             page.get_by_text("山间来信 · 自编测试系列", exact=True).wait_for(timeout=15000)
             page.screenshot(path=str(args.screenshots / "screenshot-desktop.png"), full_page=True)
             expect(page.get_by_text("已选 4 / 4", exact=True)).to_be_visible()
             selection = page.get_by_role("textbox", name=re.compile("范围"))
-            # Fill emits one complete input event after focusing the field.
-            # Per-key typing can race Flutter's text-editing attachment and
-            # lose its first character on a slower hosted runner.
-            selection.fill("2,4")
-            expect(selection).to_have_value("2,4")
+            fill_flutter_input(page, selection, "2,4", expect)
             page.get_by_role("button", name="应用", exact=True).click()
             expect(page.get_by_text("已选 2 / 4", exact=True)).to_be_visible(timeout=10000)
             with page.expect_download() as download:

@@ -91,18 +91,24 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev xvfb xauth scrot xdotool gsettings-desktop-schemas
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get --enforce-lockfile
       - run: flutter build linux --release --no-pub
-      - run: mkdir -p dist && tar -czf dist/shiori-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - run: bash tool/native_linux_smoke.sh
+      - run: cp LICENSE build/linux/x64/release/bundle/LICENSE && cp docs/LINUX.md build/linux/x64/release/bundle/README.md && mkdir -p dist && tar -czf dist/shiori-linux-x64.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
           name: linux
           path: dist/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-native-validation
+          path: build/native-validation/*
           if-no-files-found: error
 
   windows:

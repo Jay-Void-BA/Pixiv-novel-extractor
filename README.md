@@ -28,7 +28,7 @@
 | --- | --- | --- |
 | Android 7.0+ | 发布密钥签名 APK | 安装 `shiori-android.apk` |
 | iOS 15+ | 未签名 `Runner.app` + 源码 | 需自行签名，不能直接安装 |
-| Linux x64 | GTK 3 桌面包 | 解压 `.tar.gz`，运行 `./shiori` |
+| Linux x64 | GTK 3 桌面包，Ubuntu 24.04 构建 | 解压 `.tar.gz`，运行 `./shiori`；[运行说明](docs/LINUX.md) |
 | macOS 12+ | `.app` ZIP，文件名标明架构 | 解压后右键打开；未做 Developer ID 公证 |
 | Windows 10/11 x64 | 桌面 ZIP | 运行 `shiori.exe`；可能需 VC++ 2015–2022 x64 运行库 |
 | FreeBSD | Flutter Web + Python 本地服务 | Python 3.10+、现代 Chromium / Firefox；[启动说明](docs/FREEBSD.md) |

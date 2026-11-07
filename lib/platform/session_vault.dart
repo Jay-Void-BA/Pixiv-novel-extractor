@@ -137,15 +137,19 @@ class SessionVault {
   }
 
   Future<void> delete() async {
-    if (_android) {
-      await _invoke<void>('delete');
-      return;
-    }
-    await _platform(() async {
-      await _storage.delete(key: storageKey);
-      if (await _storage.read(key: storageKey) != null) {
-        throw const FormatException();
+    try {
+      if (_android) {
+        await _invoke<void>('delete');
+        return;
       }
-    });
+      await _platform(() async {
+        await _storage.delete(key: storageKey);
+        if (await _storage.read(key: storageKey) != null) {
+          throw const FormatException();
+        }
+      });
+    } catch (_) {
+      throw const PixivException('无法确认保存的会话已删除。请解锁系统密钥库后，再次选择「退出并清除会话」。');
+    }
   }
 }

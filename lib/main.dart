@@ -301,6 +301,7 @@ class _ExtractorPageState extends State<ExtractorPage> {
       _selected = {};
       _lastFile = null;
       _error = null;
+      _notice = null;
     });
     try {
       await _bridge.logout();
@@ -857,7 +858,7 @@ class _ExtractorPageState extends State<ExtractorPage> {
             ),
             PopupMenuItem(
               value: 'logout',
-              enabled: !_busy && !_loggingIn && _bridge.loggedIn,
+              enabled: !_busy && !_loggingIn && _ready,
               child: const Text('退出并清除会话'),
             ),
             const PopupMenuItem(value: 'help', child: Text('关于与使用说明')),

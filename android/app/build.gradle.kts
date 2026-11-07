@@ -69,6 +69,10 @@ flutter {
 }
 
 dependencies {
+    // AGP 9 aligns instrumentation with the app's debug runtime. The Flutter
+    // integration_test plugin also brings a runner, so align both classpaths.
+    debugImplementation("androidx.test:runner:1.7.0")
+    debugImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }

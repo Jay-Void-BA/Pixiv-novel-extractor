@@ -160,15 +160,15 @@ class PlatformBridge {
 
   Future<void> logout() async {
     loggedIn = false;
-    _rememberSession = false;
     await cancelLogin();
     final response = await _control.delete(
       Uri.base.resolve('/api/session'),
       headers: _headers,
     );
     if (response.statusCode != 200) {
-      throw const PixivException('本地服务未能清除会话，请关闭本地服务。');
+      throw const PixivException('无法确认保存的会话已删除。请解锁系统密钥库后，再次选择「退出并清除会话」。');
     }
+    _rememberSession = false;
   }
 
   Future<bool> save(ExportFile file, {Rect? shareOrigin}) async {

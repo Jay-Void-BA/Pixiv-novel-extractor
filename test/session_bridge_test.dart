@@ -80,6 +80,26 @@ void main() {
     expect(stored, 'synthetic_new_session_12345');
   });
 
+  test('failed logout can be retried after unlocking the vault', () async {
+    await bridge.setRememberSession(true);
+    await bridge.importSession('synthetic_session_12345');
+    messenger.setMockMethodCallHandler(SessionVault.channel, (_) async {
+      throw PlatformException(code: 'locked');
+    });
+    await expectLater(bridge.logout(), throwsA(isA<PixivException>()));
+    expect(bridge.loggedIn, isFalse);
+    expect(bridge.activeSession, isNull);
+    expect(bridge.rememberSession, isTrue);
+    messenger.setMockMethodCallHandler(SessionVault.channel, (call) async {
+      expect(call.method, 'delete');
+      stored = null;
+      return null;
+    });
+    await bridge.logout();
+    expect(bridge.rememberSession, isFalse);
+    expect(stored, isNull);
+  });
+
   test(
     'storage failure does not silently claim persistence or save plaintext',
     () async {

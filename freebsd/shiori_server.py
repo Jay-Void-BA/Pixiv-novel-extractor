@@ -205,9 +205,13 @@ class State:
             self.session = None
             self.session_generation += 1
             self.storage_error = False
+            try:
+                self.vault.delete()
+            except VaultError:
+                self.storage_error = True
+                raise
             if forget:
                 self.remember_session = False
-            self.vault.delete()
 
     def set_remember(self, enabled):
         with self.lock:

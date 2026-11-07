@@ -224,5 +224,19 @@ class LocalServerTests(unittest.TestCase):
         self.assertFalse(result['rememberSession'])
         self.assertIsNone(vault.read()[0])
 
+    def test_locked_keyring_logout_is_not_reported_as_deleted_and_can_be_retried(self):
+        vault = fake_vault()
+        self.server.state.vault = vault
+        self.request('POST', '/api/remember', {'enabled': True})
+        self.request('POST', '/api/session', {'session': 'synthetic_session_12345'})
+        with patch.object(vault, 'delete', side_effect=module.VaultError('locked')):
+            self.assertEqual(self.request('DELETE', '/api/session')[0], 503)
+        status = self.server.state.status()
+        self.assertFalse(status['loggedIn'])
+        self.assertTrue(status['rememberSession'] and status['storageError'])
+        self.assertEqual(self.request('DELETE', '/api/session')[0], 200)
+        self.assertIsNone(vault.read()[0])
+        self.assertFalse(self.server.state.remember_session)
+
 
 if __name__ == "__main__": unittest.main()

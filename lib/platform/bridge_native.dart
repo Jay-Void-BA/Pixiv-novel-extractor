@@ -194,8 +194,8 @@ class PlatformBridge {
   Future<void> logout() async {
     loggedIn = false;
     _session = null;
-    rememberSession = false;
     if (supportsSessionStorage) await _vault.delete();
+    rememberSession = false;
     await cancelLogin();
     if (Platform.isIOS || Platform.isAndroid) {
       await WebViewCookieManager().clearCookies();

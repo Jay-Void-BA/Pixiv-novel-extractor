@@ -22,7 +22,7 @@
 
 ## 下载与平台
 
-从仓库 **Releases** 下载附件。桌面包需要保留整个解压目录，不要只复制可执行文件。`SHA256SUMS.txt` 可校验附件完整性。
+从仓库 [Releases](https://github.com/Jay-Void-BA/Pixiv-novel-extractor/releases) 下载附件；[Actions](https://github.com/Jay-Void-BA/Pixiv-novel-extractor/actions) 可查看构建结果。桌面包需要保留整个解压目录，不要只复制可执行文件。`SHA256SUMS.txt` 可校验附件完整性。
 
 | 平台 | 交付形式 | 运行 / 安装 |
 | --- | --- | --- |

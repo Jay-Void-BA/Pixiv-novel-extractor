@@ -321,10 +321,14 @@ class _ExtractorPageState extends State<ExtractorPage> {
             '\n\n关闭此选项或退出登录会删除保存的会话。',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('开启安全保存')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('开启安全保存'),
+            ),
           ],
         ),
       );
@@ -806,8 +810,10 @@ class _ExtractorPageState extends State<ExtractorPage> {
         if (_bridge.loggedIn) ...[
           const Icon(Icons.check_circle, size: 15, color: accent),
           const SizedBox(width: 7),
-          Text(_bridge.rememberSession ? '登录已安全保存' : '已连接',
-            style: const TextStyle(fontSize: 12)),
+          Text(
+            _bridge.rememberSession ? '登录已安全保存' : '已连接',
+            style: const TextStyle(fontSize: 12),
+          ),
         ] else
           TextButton.icon(
             onPressed: _busy || _loggingIn || !_ready ? null : _signIn,

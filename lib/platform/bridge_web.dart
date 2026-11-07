@@ -22,9 +22,11 @@ class _LocalClient extends http.BaseClient {
     final uri = Uri.base
         .resolve('/api/pixiv')
         .replace(queryParameters: {'path': path});
-    final proxy = http.AbortableRequest('GET', uri,
-      abortTrigger: request is http.Abortable ? request.abortTrigger : null)
-      ..headers['Authorization'] = 'Bearer ${bridge._token}';
+    final proxy = http.AbortableRequest(
+      'GET',
+      uri,
+      abortTrigger: request is http.Abortable ? request.abortTrigger : null,
+    )..headers['Authorization'] = 'Bearer ${bridge._token}';
     return _inner.send(proxy);
   }
 

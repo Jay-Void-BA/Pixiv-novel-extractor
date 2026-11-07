@@ -25,11 +25,15 @@ class SessionVault {
     final result = await _invoke<Map<Object?, Object?>>('read');
     final value = result?['session'];
     if (value != null &&
-        (value is! String || !RegExp(r'^[A-Za-z0-9_%.-]{8,512}$').hasMatch(value))) {
+        (value is! String ||
+            !RegExp(r'^[A-Za-z0-9_%.-]{8,512}$').hasMatch(value))) {
       await delete();
       return const RestoredSession(null, discarded: true);
     }
-    return RestoredSession(value as String?, discarded: result?['discarded'] == true);
+    return RestoredSession(
+      value as String?,
+      discarded: result?['discarded'] == true,
+    );
   }
 
   Future<void> write(String session) async {

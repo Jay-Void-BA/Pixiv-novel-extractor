@@ -5,9 +5,12 @@ import 'package:shiori/platform/session_vault.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   final vault = SessionVault();
-  tearDown(() => messenger.setMockMethodCallHandler(SessionVault.channel, null));
+  tearDown(
+    () => messenger.setMockMethodCallHandler(SessionVault.channel, null),
+  );
 
   test('restores a session only through the native vault', () async {
     messenger.setMockMethodCallHandler(SessionVault.channel, (call) async {
@@ -31,12 +34,21 @@ void main() {
 
   test('native failures never expose platform details or secrets', () async {
     messenger.setMockMethodCallHandler(SessionVault.channel, (call) async {
-      throw PlatformException(code: 'failure', message: 'synthetic_secret_do_not_log');
+      throw PlatformException(
+        code: 'failure',
+        message: 'synthetic_secret_do_not_log',
+      );
     });
-    await expectLater(vault.write('synthetic_session_12345'), throwsA(
-      isA<PixivException>().having((error) => error.message, 'safe error',
-        isNot(contains('synthetic_secret_do_not_log'))),
-    ));
+    await expectLater(
+      vault.write('synthetic_session_12345'),
+      throwsA(
+        isA<PixivException>().having(
+          (error) => error.message,
+          'safe error',
+          isNot(contains('synthetic_secret_do_not_log')),
+        ),
+      ),
+    );
   });
 
   test('invalid input never reaches the native channel', () async {

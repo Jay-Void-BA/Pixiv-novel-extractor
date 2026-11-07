@@ -16,7 +16,7 @@ import 'session_vault.dart';
 
 class PlatformBridge {
   PlatformBridge({bool? supportsSessionStorage})
-      : supportsSessionStorage = supportsSessionStorage ?? Platform.isAndroid;
+    : supportsSessionStorage = supportsSessionStorage ?? Platform.isAndroid;
   final http.Client client = http.Client();
   HttpServer? _loginServer;
   Completer<String?>? _loginResult;
@@ -47,11 +47,11 @@ class PlatformBridge {
   Future<String?> login(BuildContext context) async {
     if (Platform.isAndroid || Platform.isIOS) {
       try {
-        return await Navigator.of(
-          context,
-        ).push<String>(MaterialPageRoute(
-          builder: (_) => MobileLogin(rememberSession: rememberSession),
-        ));
+        return await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (_) => MobileLogin(rememberSession: rememberSession),
+          ),
+        );
       } finally {
         await WebViewCookieManager().clearCookies();
       }

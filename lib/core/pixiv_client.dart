@@ -35,12 +35,13 @@ class PixivClient {
   }
 
   final http.Client httpClient;
+
   /// Minimum interval between network starts, including retries and catalog calls.
   final Duration pause;
   final int maxConcurrent, maxCacheEntries, maxCacheCharacters;
   final Duration cacheLifetime, requestTimeout, retryBase;
   final DateTime Function() _now;
-  final _cache = LinkedHashMap<String, _CachedNovel>();
+  final _cache = <String, _CachedNovel>{};
   final _pending = <String, _PendingNovel>{};
   final _slots = Queue<Completer<void>>();
   int _active = 0, _cacheCharacters = 0;
@@ -155,25 +156,31 @@ class PixivClient {
         void stop() {
           if (!abort.isCompleted) abort.complete();
         }
+
         final removeCancel = operation.listen(stop);
         final removeIdentity = identity.listen(stop);
         try {
-          final request = http.AbortableRequest(
-            'GET',
-            Uri.parse('https://www.pixiv.net$path'),
-            abortTrigger: abort.future,
-          )..headers.addAll({
-              'Accept': 'application/json',
-              'Referer': 'https://www.pixiv.net/',
-              'User-Agent': 'Mozilla/5.0 Shiori/1.1',
-              if (session != null) 'Cookie': 'PHPSESSID=$session',
-            });
+          final request =
+              http.AbortableRequest(
+                  'GET',
+                  Uri.parse('https://www.pixiv.net$path'),
+                  abortTrigger: abort.future,
+                )
+                ..headers.addAll({
+                  'Accept': 'application/json',
+                  'Referer': 'https://www.pixiv.net/',
+                  'User-Agent': 'Mozilla/5.0 Shiori/1.1',
+                  if (session != null) 'Cookie': 'PHPSESSID=$session',
+                });
           final task = httpClient.send(request).then(http.Response.fromStream);
           response = await _bound(
-            task.timeout(requestTimeout, onTimeout: () {
-              stop();
-              throw TimeoutException('Pixiv request timed out');
-            }),
+            task.timeout(
+              requestTimeout,
+              onTimeout: () {
+                stop();
+                throw TimeoutException('Pixiv request timed out');
+              },
+            ),
             operation,
             identity,
           );
@@ -205,7 +212,8 @@ class PixivClient {
       if (status == 404) throw const PixivException('作品不存在、已删除，或当前账号没有访问权限。');
       if (status == 429 || status >= 500) {
         _coolDown(
-          _retryAfter(response.headers['retry-after']) ?? retryBase * (1 << attempt),
+          _retryAfter(response.headers['retry-after']) ??
+              retryBase * (1 << attempt),
         );
         if (attempt < 2) continue;
         throw PixivException(
@@ -246,13 +254,30 @@ class PixivClient {
       r'^\w{3}, (\d{2}) (\w{3}) (\d{4}) (\d{2}):(\d{2}):(\d{2}) GMT$',
     ).firstMatch(value.trim());
     if (match == null) return null;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     final month = months.indexOf(match[2]!);
     if (month < 0) return null;
-    final date = DateTime.utc(int.parse(match[3]!), month + 1,
-      int.parse(match[1]!), int.parse(match[4]!), int.parse(match[5]!),
-      int.parse(match[6]!));
+    final date = DateTime.utc(
+      int.parse(match[3]!),
+      month + 1,
+      int.parse(match[1]!),
+      int.parse(match[4]!),
+      int.parse(match[5]!),
+      int.parse(match[6]!),
+    );
     final delay = date.difference(_now());
     return delay.isNegative ? Duration.zero : delay;
   }
@@ -280,7 +305,9 @@ class PixivClient {
     }
     pending.readers++;
     try {
-      return await (cancel == null ? pending.future : cancel.bind(pending.future));
+      return await (cancel == null
+          ? pending.future
+          : cancel.bind(pending.future));
     } finally {
       if (--pending.readers == 0) {
         if (identical(_pending[id], pending)) _pending.remove(id);
@@ -336,8 +363,12 @@ class PixivClient {
         description: n.description,
         link: link,
         chapters: [
-          Chapter(id: n.id, title: n.title, order: 1,
-            characterCount: n.content.runes.length),
+          Chapter(
+            id: n.id,
+            title: n.title,
+            order: 1,
+            characterCount: n.content.runes.length,
+          ),
         ],
       );
     }
@@ -371,9 +402,15 @@ class PixivClient {
       if (!RegExp(r'^[1-9]\d*$').hasMatch(id) || !ids.add(id)) {
         throw const PixivException('系列目录包含无效或重复的小说 ID。');
       }
-      chapters.add(Chapter(id: id, title: item['title'].toString(),
-        order: chapters.length + 1, available: item['available'] != false,
-        characterCount: int.tryParse('${item['textCount']}') ?? 0));
+      chapters.add(
+        Chapter(
+          id: id,
+          title: item['title'].toString(),
+          order: chapters.length + 1,
+          available: item['available'] != false,
+          characterCount: int.tryParse('${item['textCount']}') ?? 0,
+        ),
+      );
     }
     if (chapters.isEmpty) throw const PixivException('该系列没有可提取的章节。');
     final total = int.tryParse('${data['total']}');
@@ -382,9 +419,13 @@ class PixivClient {
         '系列目录数量与总数不一致，可能有无权查看的章节或接口发生变化。已停止，避免生成不完整文件。',
       );
     }
-    return Work(title: data['title'] as String,
+    return Work(
+      title: data['title'] as String,
       author: data['userName']?.toString() ?? '未知作者',
-      description: data['caption']?.toString() ?? '', link: link, chapters: chapters);
+      description: data['caption']?.toString() ?? '',
+      link: link,
+      chapters: chapters,
+    );
   }
 
   Future<List<Novel>> extract(
@@ -394,7 +435,9 @@ class PixivClient {
     void Function(int done, int total)? onProgress,
   }) async {
     cancel.check();
-    final chapters = work.chapters.where((c) => selected.contains(c.id)).toList();
+    final chapters = work.chapters
+        .where((c) => selected.contains(c.id))
+        .toList();
     if (chapters.isEmpty) throw const PixivException('请先选择至少一个章节。');
     if (chapters.any((c) => !c.available)) {
       throw const PixivException('所选章节中包含不可访问的作品。');
@@ -425,11 +468,14 @@ class PixivClient {
         }
       }
     }
+
     try {
-      await Future.wait(List.generate(
-        chapters.length < maxConcurrent ? chapters.length : maxConcurrent,
-        (_) => worker(),
-      ));
+      await Future.wait(
+        List.generate(
+          chapters.length < maxConcurrent ? chapters.length : maxConcurrent,
+          (_) => worker(),
+        ),
+      );
       if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
       cancel.check();
       return result.cast<Novel>();

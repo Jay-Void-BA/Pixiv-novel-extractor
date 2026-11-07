@@ -6,7 +6,8 @@ import 'package:shiori/platform/session_vault.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   late PlatformBridge bridge;
   String? stored;
   late List<String> calls;
@@ -17,7 +18,8 @@ void main() {
     messenger.setMockMethodCallHandler(SessionVault.channel, (call) async {
       calls.add(call.method);
       switch (call.method) {
-        case 'read': return {'session': stored, 'discarded': false};
+        case 'read':
+          return {'session': stored, 'discarded': false};
         case 'write':
           stored = (call.arguments as Map)['session'] as String;
           break;
@@ -48,18 +50,21 @@ void main() {
     expect(bridge.loggedIn, isTrue);
   });
 
-  test('restored native cookie is used instead of the web proxy sentinel', () async {
-    stored = 'synthetic_session_12345';
-    await bridge.init();
-    expect(bridge.activeSession, stored);
-    expect(bridge.activeSession, isNot('local-proxy-session'));
-    expect(bridge.loggedIn, isTrue);
-    expect(bridge.rememberSession, isTrue);
-    await bridge.logout();
-    expect(stored, isNull);
-    expect(bridge.activeSession, isNull);
-    expect(bridge.rememberSession, isFalse);
-  });
+  test(
+    'restored native cookie is used instead of the web proxy sentinel',
+    () async {
+      stored = 'synthetic_session_12345';
+      await bridge.init();
+      expect(bridge.activeSession, stored);
+      expect(bridge.activeSession, isNot('local-proxy-session'));
+      expect(bridge.loggedIn, isTrue);
+      expect(bridge.rememberSession, isTrue);
+      await bridge.logout();
+      expect(stored, isNull);
+      expect(bridge.activeSession, isNull);
+      expect(bridge.rememberSession, isFalse);
+    },
+  );
 
   test('server-rejected session is deleted before another login', () async {
     await bridge.setRememberSession(true);
@@ -72,16 +77,21 @@ void main() {
     expect(stored, 'synthetic_new_session_12345');
   });
 
-  test('storage failure does not silently claim persistence or save plaintext', () async {
-    await bridge.setRememberSession(true);
-    messenger.setMockMethodCallHandler(SessionVault.channel, (_) async {
-      throw PlatformException(code: 'unavailable');
-    });
-    await expectLater(bridge.importSession('synthetic_session_12345'),
-      throwsA(isA<PixivException>()));
-    expect(bridge.activeSession, 'synthetic_session_12345');
-    expect(bridge.loggedIn, isTrue);
-    expect(bridge.rememberSession, isFalse);
-    expect(stored, isNull);
-  });
+  test(
+    'storage failure does not silently claim persistence or save plaintext',
+    () async {
+      await bridge.setRememberSession(true);
+      messenger.setMockMethodCallHandler(SessionVault.channel, (_) async {
+        throw PlatformException(code: 'unavailable');
+      });
+      await expectLater(
+        bridge.importSession('synthetic_session_12345'),
+        throwsA(isA<PixivException>()),
+      );
+      expect(bridge.activeSession, 'synthetic_session_12345');
+      expect(bridge.loggedIn, isTrue);
+      expect(bridge.rememberSession, isFalse);
+      expect(stored, isNull);
+    },
+  );
 }

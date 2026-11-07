@@ -197,6 +197,7 @@ jobs:
           else:
               print('Development build: no release signing key configured.')
       - run: flutter build apk --release --no-pub
+      - run: python3 tool/verify_android.py
       - run: mkdir -p dist && cp build/app/outputs/flutter-apk/app-release.apk dist/shiori-android.apk
       - name: Remove restored key
         if: always()

@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      verify_android_signing:
+        description: 'Build and verify the official Android signature without publishing (select main)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,6 +42,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - run: flutter pub get --enforce-lockfile
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --fatal-infos
@@ -163,15 +172,14 @@ jobs:
           if-no-files-found: error
 
   android:
-    name: Android release APK
+    name: Android build & signing checks
     needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    env:
-      SHIORI_KEYSTORE_PASSWORD: ${{ secrets.SHIORI_KEYSTORE_PASSWORD }}
-      SHIORI_KEYSTORE_BASE64: ${{ secrets.SHIORI_KEYSTORE_BASE64 }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -181,32 +189,86 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - name: Restore release signing key
+      - name: Select Android build mode
+        id: android_mode
+        env:
+          SHIORI_VERIFY_SIGNING: ${{ inputs.verify_android_signing }}
         shell: python
         run: |
-          import base64, os
+          import os
+          ref = os.environ['GITHUB_REF']
+          manual = os.environ.get('SHIORI_VERIFY_SIGNING', '').lower() == 'true'
+          if manual and ref != 'refs/heads/main' and not ref.startswith('refs/tags/v'):
+              raise SystemExit('Select main for manual release-signing verification.')
+          mode = 'release' if ref.startswith('refs/tags/v') or manual else 'development'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f'mode={mode}\n')
+      - name: Restore and validate the official release key
+        if: steps.android_mode.outputs.mode == 'release'
+        env:
+          SHIORI_KEYSTORE_BASE64: ${{ secrets.SHIORI_KEYSTORE_BASE64 }}
+          SHIORI_KEYSTORE_PASSWORD: ${{ secrets.SHIORI_KEYSTORE_PASSWORD }}
+          SHIORI_KEY_ALIAS: ${{ secrets.SHIORI_KEY_ALIAS }}
+          SHIORI_KEY_PASSWORD: ${{ secrets.SHIORI_KEY_PASSWORD }}
+          SHIORI_SIGNING_CERT_SHA256: ${{ secrets.SHIORI_SIGNING_CERT_SHA256 }}
+        run: python3 tool/prepare_android_signing.py
+      - name: Build official release APK
+        if: steps.android_mode.outputs.mode == 'release'
+        env:
+          SHIORI_KEYSTORE_PASSWORD: ${{ secrets.SHIORI_KEYSTORE_PASSWORD }}
+          SHIORI_KEY_ALIAS: ${{ secrets.SHIORI_KEY_ALIAS }}
+          SHIORI_KEY_PASSWORD: ${{ secrets.SHIORI_KEY_PASSWORD }}
+        run: flutter build apk --release --no-pub
+      - name: Verify official APK and certificate pin
+        if: steps.android_mode.outputs.mode == 'release'
+        env:
+          SHIORI_SIGNING_CERT_SHA256: ${{ secrets.SHIORI_SIGNING_CERT_SHA256 }}
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/shiori-android.apk
+          python3 tool/verify_android.py dist/shiori-android.apk --report dist/android-signing-verification.json
+      - name: Build development APK without release credentials
+        if: steps.android_mode.outputs.mode == 'development'
+        run: flutter build apk --debug --no-pub
+      - name: Verify development APK
+        if: steps.android_mode.outputs.mode == 'development'
+        run: |
+          python3 tool/verify_android.py build/app/outputs/flutter-apk/app-debug.apk --mode development --report build/android-development-verification.json
+          mkdir -p development
+          cp build/app/outputs/flutter-apk/app-debug.apk development/shiori-android-debug.apk
+      - name: Confirm the release gate rejects the actual development APK
+        if: steps.android_mode.outputs.mode == 'development'
+        shell: python
+        run: |
+          import json, sys
           from pathlib import Path
-          key = os.environ.get('SHIORI_KEYSTORE_BASE64')
-          password = os.environ.get('SHIORI_KEYSTORE_PASSWORD')
-          if key and password:
-              path = Path(os.environ['RUNNER_TEMP']) / 'shiori-release.jks'
-              path.write_bytes(base64.b64decode(key, validate=True))
-              with open(os.environ['GITHUB_ENV'], 'a') as out:
-                  out.write(f'SHIORI_KEYSTORE_PATH={path}\n')
-          elif os.environ['GITHUB_REF'].startswith('refs/tags/'):
-              raise SystemExit('Release tags require SHIORI_KEYSTORE_BASE64 and SHIORI_KEYSTORE_PASSWORD secrets.')
+          sys.path.insert(0, 'tool')
+          from android_signing import SigningError
+          from verify_android import verify
+          report = json.loads(Path('build/android-development-verification.json').read_text())
+          try:
+              verify(Path('build/app/outputs/flutter-apk/app-debug.apk').resolve(), release=True,
+                     expected=report['certificate_sha256'])
+          except SigningError as error:
+              if 'Debug certificates and debuggable APKs' not in str(error):
+                  raise SystemExit('The development APK must fail the release identity check.') from None
           else:
-              print('Development build: no release signing key configured.')
-      - run: flutter build apk --release --no-pub
-      - run: python3 tool/verify_android.py
-      - run: mkdir -p dist && cp build/app/outputs/flutter-apk/app-release.apk dist/shiori-android.apk
+              raise SystemExit('Release gate incorrectly accepted a development APK.')
+          print('PASS: the actual development APK is rejected even when its certificate fingerprint matches.')
       - name: Remove restored key
         if: always()
-        run: rm -f "$RUNNER_TEMP/shiori-release.jks"
+        run: rm -rf "$RUNNER_TEMP/shiori-android-signing"
       - uses: actions/upload-artifact@v4
+        if: success() && steps.android_mode.outputs.mode == 'release'
         with:
-          name: android
+          name: android-release
           path: dist/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: success() && steps.android_mode.outputs.mode == 'development'
+        with:
+          name: android-development
+          path: development/shiori-android-debug.apk
           if-no-files-found: error
 
   release:
@@ -219,14 +281,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - uses: actions/download-artifact@v4
         with:
-          pattern: '*'
-          path: downloaded
-      - shell: bash
+          pattern: '{web-and-bridge,linux,windows,apple,android-release}'
+          merge-multiple: true
+          path: dist
+      - name: Verify the final official APK before publication
+        env:
+          SHIORI_SIGNING_CERT_SHA256: ${{ secrets.SHIORI_SIGNING_CERT_SHA256 }}
         run: |
-          mkdir -p dist
-          find downloaded -name 'shiori-*' -type f -exec cp {} dist/ \;
+          python3 tool/verify_android.py dist/shiori-android.apk --report dist/android-signing-verification.json
           python3 tool/check_release.py dist
       - name: Publish assets and checksums
         env:

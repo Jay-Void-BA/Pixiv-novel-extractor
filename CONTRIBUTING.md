@@ -52,6 +52,8 @@ Web 打包前需要先完成 Web 编译。界面集成检查、原生启动检�
 
 应用版本位于 `pubspec.yaml`。修改版本时，同步 `CHANGELOG.md` 与 `docs/RELEASE_NOTES.md`；发布前核对所有平台实际完成的构建与验证。
 
-`main` 和 PR 触发构建测试；`v*` 标签在所有平台通过后发布完整 Release。Android 标签构建要求 `SHIORI_KEYSTORE_BASE64` 与 `SHIORI_KEYSTORE_PASSWORD` 两个 Actions Secrets，配置方法见 [README](README.md#ci--release)。没有发布密钥的普通分支构建使用调试签名，不能替代正式发布签名。不要用新密钥替换已发布 APK 的原密钥，否则无法覆盖升级。
+`main` 和 PR 触发构建测试，Android 仅生成明确标注的开发 APK。首次正式发布应在本地生成新的发布密钥，再用安全配置脚本上传五项 Actions Secrets，完整步骤见 [Android 签名指南](docs/ANDROID_SIGNING.md)。普通构建不读取发布密钥。
+
+先手动运行 `verify_android_signing=true` 完成正式签名验证；此运行只生成正式签名 Artifact，不发布 Release。随后在同一提交使用正式版本标签，待所有平台通过、最终 APK 的证书指纹和签名报告再次验证后发布。首次正式发布后保留新发布密钥用于后续升级。
 
 提交前检查 `git diff --check` 和 `git status`。会话 Cookie、签名密钥、密码、本地 SDK 配置、用户导出文件以及构建缓存应留在本机；测试数据使用自行编写的内容。

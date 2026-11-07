@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 完善 Android 首次正式发布：本地新密钥与五项 Secrets 配置、独立签名预检、证书指纹匹配、正式 APK 二次验证和可下载验证报告。
+- 移除 release 构建的调试签名回退；开发 APK 使用独立名称与 Artifact，不能进入正式 Release。
 - 修复无 GPU 的 Actions 浏览器环境启动失败，以及 Flutter 输入框逐字输入时首字符丢失的问题；失败时保留诊断附件。
 - 发布流程支持在全部平台通过后补全并发布已有草稿 Release。
 - 从 Google Drive Primary 的 v1.0.0 交付资料恢复完整 Flutter 工程及原始 6 次 Git 提交。

@@ -4,6 +4,17 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseStorePath = System.getenv("SHIORI_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("SHIORI_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("SHIORI_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("SHIORI_KEY_PASSWORD")
+val releaseSigningConfigured = listOf(releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+    .all { !it.isNullOrBlank() }
+val releaseTaskRequested = gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+if (releaseTaskRequested && !releaseSigningConfigured) {
+    throw GradleException("Release signing is required. Configure the SHIORI signing environment; see docs/ANDROID_SIGNING.md.")
+}
+
 android {
     namespace = "io.github.jayvoid.shiori"
     compileSdk = flutter.compileSdkVersion
@@ -29,18 +40,19 @@ android {
     }
 
     signingConfigs {
-        if (System.getenv("SHIORI_KEYSTORE_PATH") != null) {
+        if (releaseSigningConfigured) {
             create("release") {
-                storeFile = file(System.getenv("SHIORI_KEYSTORE_PATH"))
-                storePassword = System.getenv("SHIORI_KEYSTORE_PASSWORD")
-                keyAlias = "shiori"
-                keyPassword = System.getenv("SHIORI_KEYSTORE_PASSWORD")
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
     buildTypes {
         release {
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            isDebuggable = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 }

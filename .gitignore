@@ -12,6 +12,17 @@ android/local.properties
 android/key.properties
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.key
+*.pem
+*.jks.base64
+*.jks.b64
+*.keystore.base64
+*.keystore.b64
+.secrets/
+*.hprof
+*.heapdump
 ios/Pods/
 ios/.symlinks/
 ios/Flutter/Generated.xcconfig

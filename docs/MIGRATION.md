@@ -33,4 +33,4 @@
 
 ## 交付范围
 
-源码仓库保存开发所需的完整工程结构。原始安装包与验证归档继续保留在 Drive，未将 APK、桌面二进制文件、缓存或生成目录作为源码提交。正式二进制发布由 `.github/workflows/delivery.yml` 管理，Android 发布签名需要沿用原发布密钥并配置仓库 Secrets。
+源码仓库保存开发所需的完整工程结构。原始安装包与验证归档继续保留在 Drive，未将 APK、桌面二进制文件、缓存或生成目录作为源码提交。正式二进制发布由 `.github/workflows/delivery.yml` 管理。此前未正式发布过 Android APK；首次发布使用本地新生成的发布密钥及仓库 Secrets，见 [签名指南](ANDROID_SIGNING.md)。

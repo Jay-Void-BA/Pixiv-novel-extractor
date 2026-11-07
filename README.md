@@ -120,19 +120,25 @@ python3 tool/browser_smoke.py
 2. Linux、Windows、macOS、iOS、Android 原生构建，以及 FreeBSD VM 服务测试。
 3. 全部成功且触发源是 `v*` 标签时，检查预期附件、生成 SHA-256 校验文件，再创建 Release。
 
-Android 版本标签要求仓库 Actions Secrets：
+Android 首次正式发布使用本地新生成的密钥，操作步骤见 [Android 签名与首次发布](docs/ANDROID_SIGNING.md)。版本标签及手动正式签名验证要求以下仓库 Actions Secrets：
 
 | Secret | 内容 |
 | --- | --- |
-| `SHIORI_KEYSTORE_BASE64` | JKS 发布密钥库的 Base64，别名必须为 `shiori` |
-| `SHIORI_KEYSTORE_PASSWORD` | 密钥库及私钥共同密码 |
+| `SHIORI_KEYSTORE_BASE64` | 新生成的 JKS 发布密钥库 Base64 |
+| `SHIORI_KEYSTORE_PASSWORD` | 密钥库密码 |
+| `SHIORI_KEY_ALIAS` | 发布私钥别名，如 `shiori` |
+| `SHIORI_KEY_PASSWORD` | 私钥密码 |
+| `SHIORI_SIGNING_CERT_SHA256` | 发布证书的 SHA-256 指纹 |
 
-请备份原始密钥并在后续版本持续使用，以保证升级兼容。无密钥的分支构建使用调试签名；版本标签直接失败，防止误发。密钥只恢复到 runner 临时目录，构建后删除。
+本地配置脚本会隐藏询问密码，通过标准输入上传 Secrets，不打印或写出 Base64。普通 main / PR 仅生成开发 APK；正式 `release` 构建缺少签名配置会直接失败。工作流拒绝调试证书、可调试 APK 和指纹不匹配的证书；在发布前再次核对实际 APK 及签名验证报告。密钥只恢复到 runner 私有临时目录，始终删除。
 
 ```sh
-git tag v1.0.0
-git push origin v1.0.0
+# 先在 main 验证正式签名；此运行不发布 Release。
+gh workflow run delivery.yml --repo Jay-Void-BA/Pixiv-novel-extractor \
+  --ref main -f verify_android_signing=true
 ```
+
+正式发布标签必须指向通过验证的新提交，现有旧标签不可直接重跑。首次正式发布后安全备份并持续使用该发布密钥。Release 同时提供 `android-signing-verification.json` 与 `SHA256SUMS.txt`。
 
 工作流不签名 iOS，不对 macOS 做 Developer ID 签名 / 公证，不对 Windows 做 Authenticode 签名，也不上传任何应用或扩展商店。
 

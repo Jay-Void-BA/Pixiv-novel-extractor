@@ -77,6 +77,7 @@ Pixiv-novel-extractor/
 │   ├── export_test.dart           # TXT、长篇 CJK PDF 与空导出校验
 │   ├── widget_test.dart           # 选章、界面交互和布局
 │   ├── test_local_server.py       # 服务访问范围、会话和路径测试
+│   ├── test_android_signing.py    # 密钥保护、调试签名拒绝和发布校验测试
 │   └── extension_test.cjs         # 浏览器扩展授权与传递逻辑测试
 ├── tool/
 │   ├── browser_smoke.py           # Chromium 界面与文件下载集成检查
@@ -85,12 +86,16 @@ Pixiv-novel-extractor/
 │   ├── package_web.py             # 打包 Web UI 与本地服务
 │   ├── verify_pdf.py              # 用 Poppler 独立检查 PDF 内容完整性
 │   ├── verify_android.py          # APK 签名、对齐、资源与架构检查
+│   ├── android_signing.py         # 发布证书身份、指纹和报告校验
+│   ├── prepare_android_signing.py # CI 私有临时目录恢复发布密钥
+│   ├── setup_android_signing.py   # 本地隐藏输入密码并安全配置 Secrets
 │   └── check_release.py           # 检查所有发布附件并生成 SHA-256
 └── docs/
     ├── USAGE.zh-CN.md             # 中文安装与使用方法
     ├── LINUX.md                   # Linux 运行说明
     ├── FREEBSD.md                 # 本地 Web / FreeBSD 运行说明
     ├── RELEASE_NOTES.md           # 多平台完整 Release 的说明模板
+    ├── ANDROID_SIGNING.md         # 首次正式发布与本地密钥 / Secrets 配置
     ├── VALIDATION.md              # 原始交付验证记录
     ├── MIGRATION.md               # Drive 迁移来源与本次复核
     ├── PROJECT_STRUCTURE.md       # 本文

@@ -4,7 +4,7 @@ Flutter Pixiv 小说提取器：单篇 / 系列目录，逐章选择与范围选
 
 源码采用 BSD-2-Clause；随包字体保留 SIL Open Font License。
 
-- Android：`shiori-android.apk`，正式发布密钥签名，可直接安装。
+- Android：`shiori-android.apk`，使用首次正式发布的新密钥签名；证书指纹与预先配置的指纹匹配，APK 非可调试构建，可直接安装。`android-signing-verification.json` 提供公开签名验证记录。
 - Linux：`shiori-linux-x64.tar.gz`，解压整个目录后运行 `./shiori`；需要 GTK 3。
 - Windows：`shiori-windows-x64.zip`，解压整个目录后运行 `shiori.exe`；可能需要 Microsoft Visual C++ 2015–2022 x64 运行库。
 - macOS：`shiori-macos-<架构>.zip`，未经过 Developer ID 公证。解压后右键打开；不要只复制包内可执行文件。

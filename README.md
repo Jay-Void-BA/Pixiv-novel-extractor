@@ -22,6 +22,13 @@
 
 ## 下载与平台
 
+本仓库已从原始 v1.0.0 交付资料恢复完整源码与 Git 历史，包含各平台工程、字体、测试和打包脚本。安装包的实际可用范围以 Releases 中已有附件为准；表格列出各平台的交付形式，不代表每个平台都已发布二进制文件。源码可直接克隆：
+
+```sh
+git clone https://github.com/Jay-Void-BA/Pixiv-novel-extractor.git
+cd Pixiv-novel-extractor
+```
+
 从仓库 [Releases](https://github.com/Jay-Void-BA/Pixiv-novel-extractor/releases) 下载附件；[Actions](https://github.com/Jay-Void-BA/Pixiv-novel-extractor/actions) 可查看构建结果。桌面包需要保留整个解压目录，不要只复制可执行文件。`SHA256SUMS.txt` 可校验附件完整性。
 
 | 平台 | 交付形式 | 运行 / 安装 |
@@ -68,6 +75,8 @@ open ios/Runner.xcworkspace
 在 Xcode 的 Runner → Signing & Capabilities 选择自己的 Team，按需修改 Bundle ID，连接设备构建。若有分发证书与描述文件，可运行 `flutter build ipa --export-options-plist=<你的配置>`。不要将证书与密码提交到仓库。
 
 ## 开发与测试
+
+开发环境、修改流程和平台要求见 [开发指南](CONTRIBUTING.md)；目录与模块职责见 [完整项目结构](docs/PROJECT_STRUCTURE.md)。
 
 固定使用 **Flutter 3.47.9 / Dart 3.13.7**，依赖锁定于 `pubspec.lock`。宿主机需安装 [对应平台工具链](https://docs.flutter.dev/platform-integration)。
 
@@ -130,6 +139,10 @@ git push origin v1.0.0
 ## 结构与边界
 
 ```text
+android/ ios/       Android 与 iOS 宿主工程
+linux/ macos/       Linux 与 macOS 宿主工程
+windows/ web/       Windows 宿主工程与 Web 启动资源
+assets/fonts/       TXT/PDF 与界面使用的中日文字体及许可
 lib/core/           链接、目录、请求、正文转换、TXT/PDF
 lib/platform/       登录、浏览器连接、Web 本机传输与文件保存
 lib/main.dart       响应式 Flutter UI
@@ -137,7 +150,11 @@ browser_extension/  经授权的 Pixiv → 本机会话连接
 freebsd/            Python 标准库本地 Web 服务
 test/               Flutter / Python / Node 测试
 tool/               打包与 Release 完整性检查
+docs/               使用方法、平台说明、结构说明与验证记录
+.github/workflows/  多平台构建、测试与版本发布
 ```
+
+完整目录、调用关系与生成文件说明见 [项目结构](docs/PROJECT_STRUCTURE.md)。[迁移记录](docs/MIGRATION.md) 保存源文件校验值与本次复核结果；[更新记录](CHANGELOG.md) 记录版本内容。
 
 Pixiv 的 Web AJAX 接口未公开且可能变化；参考 [PixivNow 接口记录](https://github.com/FreeNowOrg/PixivNow/blob/master/docs/pixiv-web-api.md)。`content_titles` 返回完整系列目录，不是按 30 条分页的 `series_content`。目录数量不符或重复会停止加载，避免静默缺章。
 

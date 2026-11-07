@@ -1,4 +1,6 @@
-# 本地验证记录
+# 原始交付验证记录
+
+本页保留从 Drive 源码恢复的原始验证结果；2026-11-07 仓库迁移时重新执行的检查见 [迁移与复核记录](MIGRATION.md)。原记录中的平台验证不等同于本次重新构建。
 
 环境：Linux x64，Flutter 3.47.9 / Dart 3.13.7，2026-11-06。
 
@@ -27,6 +29,6 @@ Android 原生构建补充验证：2026-11-07，Temurin JDK 17、Android SDK 36�
 - Android 尚未进行真机启动与登录测试；Windows、macOS、iOS 的原生构建尚待仓库 Actions 执行，当前不能将这些任务描述为已通过。
 - FreeBSD 服务尚未在本地 FreeBSD 主机运行，工作流已配置 FreeBSD VM 测试。
 - 已确认在 `Jay-Void-BA/Pixiv-novel-extractor` 公开发布，源码采用 BSD-2-Clause；远程 CI 和 Release 的结果以仓库 Actions / Releases 页面为准。
-- 当前 GitHub 连接的写入请求仍返回 403；代码尚未推送，远程 CI 与 Release 尚未执行。
+- 原始 Drive 交付时，GitHub 写入请求返回 403，代码尚未推送。后续仓库恢复与复核见 [迁移记录](MIGRATION.md)，远程 CI 与 Release 结果以仓库页面为准。
 
 复现命令见 README 和 `.github/workflows/delivery.yml`。CI 成功记录应以实际工作流运行页面为准。

@@ -15,7 +15,7 @@
 - 明确要求登录时打开登录流程，并重试一次。登录、验证码与访问权限由 Pixiv 控制。
 - 最多 3 个并发请求、全局请求间隔与共享冷却；正文按原始目录顺序合并，失败不保存半份文件。
 - 有上限和过期时间的正文缓存，重复提取缓存章节无需等待或重新请求。
-- Android 可选择安全保存登录：AES-256-GCM + Android Keystore，最长 30 天；默认仅保留在内存。
+- 各平台可选择自动恢复登录：Android AES-256-GCM / Keystore、Apple Keychain、Windows DPAPI、Linux / FreeBSD 系统密钥环；默认仅保留在内存，最长保存 30 天。
 - 不保存 Pixiv 密码，无遥测，无第三方小说转发后端。
 
 ![桌面界面](docs/screenshot-desktop.png)
@@ -65,7 +65,9 @@ FreeBSD 不在 [Flutter 官方原生支持列表](https://docs.flutter.dev/refer
 
 登录不会解锁原本无权访问、已删除或受限制的作品。403 也可能是风控，不会无限循环登录。退出会话会清除应用会话、正文缓存及待保存文件；已导出文件与外部浏览器的登录状态由你管理。
 
-Android 右上角「会话与帮助」→「在此设备安全保存登录」可开启自动恢复。可在登录前开启，也可保存当前会话。密钥在设备 Keystore 中生成且不可导出，密文存放在不参与备份的应用私有目录；关闭选项或退出登录会删除密文和密钥。过期、损坏或失去设备密钥的会话会被丢弃。其他平台继续仅在内存保留会话。详见 [安全存储与性能说明](docs/SECURITY_AND_PERFORMANCE.md)。
+右上角「会话与帮助」→「在此设备安全保存登录」可开启自动恢复，既可保存当前会话，也可在登录前开启。Android 使用 AES-256-GCM 和设备 Keystore；iOS/macOS 使用 Keychain；Windows 使用当前用户的 DPAPI；Linux 使用 libsecret / Secret Service。Web/FreeBSD 将凭据保存在本地服务所用的系统密钥环，浏览器不持久保存 Cookie。
+
+关闭选项或退出登录会删除保存的会话，Android 同时删除专用 AES 密钥。过期或损坏的会话会被丢弃；系统密钥库不可用时明确报错，不回退到明文文件。Linux/FreeBSD 需运行并解锁系统密钥环，配置步骤与平台差异见 [安全存储与性能说明](docs/SECURITY_AND_PERFORMANCE.md)。
 
 ### iOS 自行签名
 
@@ -86,7 +88,7 @@ open ios/Runner.xcworkspace
 
 ```sh
 flutter pub get --enforce-lockfile
-dart format --output=none --set-exit-if-changed lib test
+dart format --output=none --set-exit-if-changed lib test integration_test tool/benchmark_client.dart
 flutter analyze --fatal-infos
 flutter test --coverage
 python3 -m unittest discover -s test -p 'test_*.py' -v
@@ -173,7 +175,7 @@ Pixiv 的 Web AJAX 接口未公开且可能变化；参考 [PixivNow 接口记�
 
 ## 隐私与许可
 
-请求仅发往 Pixiv 及本机服务。无遥测、远程日志、账号注册或凭据云存储。默认会话只驻留内存；Android 可主动开启本机加密保存，退出会删除保存的会话密钥并清除内存缓存。本地服务限制 Host / Origin、固定上游接口并拒绝目录穿越；连接令牌不写入访问日志。
+请求仅发往 Pixiv 及本机服务。无遥测、远程日志、账号注册或凭据云存储。默认会话只驻留内存；可主动开启系统安全存储，退出会删除保存的会话并清除内存缓存。本地服务限制 Host / Origin、固定上游接口并拒绝目录穿越；连接令牌不写入访问日志。
 
 应用源码 [BSD-2-Clause](LICENSE)；字体 [SIL Open Font License](assets/fonts/OFL.txt)。依赖的开源许可随 Flutter 构建产物分发。
 

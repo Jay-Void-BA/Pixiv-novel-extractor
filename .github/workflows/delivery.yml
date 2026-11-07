@@ -126,7 +126,7 @@ jobs:
             flutter test integration_test/session_storage_test.dart -d linux --reporter expanded
             python3 tool/verify_system_vault.py
           '
-      - run: cp LICENSE build/linux/x64/release/bundle/LICENSE && cp docs/LINUX.md build/linux/x64/release/bundle/README.md && mkdir -p dist && tar -czf dist/shiori-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - run: cp LICENSE build/linux/x64/release/bundle/LICENSE && cp docs/LINUX.md build/linux/x64/release/bundle/README.md && cp docs/SECURITY_AND_PERFORMANCE.md build/linux/x64/release/bundle/SECURITY_AND_PERFORMANCE.md && mkdir -p dist && tar -czf dist/shiori-linux-x64.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
           name: linux

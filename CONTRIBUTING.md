@@ -2,7 +2,7 @@
 
 ## 环境
 
-使用 Flutter **3.47.9**（Dart **3.13.7**）及 `pubspec.lock` 中的依赖版本；CI 使用相同 Flutter 版本。Python 服务及其测试仅使用标准库，需要 Python 3.10+；浏览器扩展测试使用 Node.js 22+。
+使用 Flutter **3.47.9**（Dart **3.13.7**）及 `pubspec.lock` 中的依赖版本；CI 使用相同 Flutter 版本。Python 基础服务及单元测试使用标准库，需要 Python 3.10+；安全保存可选使用系统 `secret-tool` 或 Python `keyring`。浏览器扩展测试使用 Node.js 22+。
 
 ```sh
 git clone https://github.com/Jay-Void-BA/Pixiv-novel-extractor.git
@@ -11,14 +11,14 @@ flutter --version
 flutter pub get --enforce-lockfile
 ```
 
-平台宿主工具链按 [Flutter 官方说明](https://docs.flutter.dev/platform-integration) 安装。Android 使用 JDK 17 和 Android SDK；Linux 需要 GTK 3、Clang、CMake、Ninja、pkg-config 和 liblzma 开发包；Windows 原生构建需要 Windows 与 Visual Studio C++ 桌面工具；macOS / iOS 需要 macOS 与 Xcode。
+平台宿主工具链按 [Flutter 官方说明](https://docs.flutter.dev/platform-integration) 安装。Android 使用 JDK 17 和 Android SDK；Linux 需要 GTK 3、Clang、CMake、Ninja、pkg-config、liblzma 和 libsecret 开发包；Windows 原生构建需要 Windows 与 Visual Studio C++ 桌面工具；macOS / iOS 需要 macOS 与 Xcode。
 
 ## 修改与验证
 
 模块职责见 [项目结构](docs/PROJECT_STRUCTURE.md)。修改提取、会话、选章或导出行为时，应补充覆盖实际行为的现有测试；单纯文档修改可检查链接与命令。
 
 ```sh
-dart format --output=none --set-exit-if-changed lib test
+dart format --output=none --set-exit-if-changed lib test integration_test tool/benchmark_client.dart
 flutter analyze --fatal-infos
 flutter test --coverage
 python3 -m unittest discover -s test -p 'test_*.py' -v

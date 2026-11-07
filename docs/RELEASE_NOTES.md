@@ -6,8 +6,8 @@ Flutter Pixiv 小说提取器：单篇 / 系列目录，逐章选择与范围选
 
 - 提取性能：由串行请求改为最多 3 个并发、至少 350ms 的全局启动间隔。目录信息并行读取；同章请求合并，缓存命中不再等待。
 - 请求安全：共享 429 / 服务错误冷却，支持 Retry-After；取消、失败和账号切换会停止排队请求，章节仍按原目录顺序合并。
-- Android 登录记忆：会话菜单中主动开启「在此设备安全保存登录」，使用 AES-256-GCM 与不可导出的 Keystore 密钥，最长 30 天。只保存 PHPSESSID，不保存 Pixiv 密码；关闭选项或退出登录会删除密文及密钥。
-- 添加请求队列测试、合成性能基准与 Android 模拟器上的真实 Keystore 安全测试。其他平台的登录会话仍只驻留内存。
+- 自动恢复登录：会话菜单中主动开启「在此设备安全保存登录」，Android 使用 AES-256-GCM 与 Keystore，Apple 使用 Keychain，Windows 使用 DPAPI，Linux / FreeBSD 使用系统密钥环，最长 30 天。只保存 PHPSESSID，不保存 Pixiv 密码；关闭选项或退出登录会删除保存内容；Android 同时删除专用 AES 密钥。
+- 添加请求队列测试、合成性能基准与 Android 模拟器上的真实 Keystore 安全测试。加入 Windows、macOS、Linux 和 iOS 模拟器的真实系统密钥库集成测试。
 
 - Android：`shiori-android.apk`，沿用 v1.0.0 正式发布密钥；证书指纹与预先配置的指纹匹配，APK 非可调试构建。可覆盖安装正式 v1.0.0。`android-signing-verification.json` 提供公开签名验证记录。
 - Linux：`shiori-linux-x64.tar.gz`，解压整个目录后运行 `./shiori`；需要 GTK 3。

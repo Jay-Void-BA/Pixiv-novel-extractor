@@ -14,6 +14,7 @@ shutil.copytree(root / "build/web", staging / "web")
 shutil.copy2(root / "freebsd/shiori_server.py", staging / "shiori_server.py")
 shutil.copy2(root / "LICENSE", staging / "LICENSE")
 shutil.copy2(root / "docs/FREEBSD.md", staging / "README.md")
+shutil.copy2(root / "docs/SECURITY_AND_PERFORMANCE.md", staging / "SECURITY_AND_PERFORMANCE.md")
 with zipfile.ZipFile(dist / "shiori-web-freebsd.zip", "w", zipfile.ZIP_DEFLATED) as out:
     for path in sorted(staging.rglob("*")):
         if path.is_file(): out.write(path, path.relative_to(staging))

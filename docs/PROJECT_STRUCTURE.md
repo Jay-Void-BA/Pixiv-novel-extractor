@@ -35,7 +35,7 @@ Pixiv-novel-extractor/
 │       ├── bridge_native.dart     # 原生网络、桌面会话连接与系统保存
 │       ├── bridge_web.dart        # 浏览器下载与本机服务通信
 │       ├── bridge_stub.dart       # 不支持平台的回退实现
-│       ├── session_vault.dart     # Android 加密会话存储通道，不接触原始密钥
+│       ├── session_vault.dart     # Keystore / Keychain / DPAPI / Secret Service 适配
 │       └── mobile_login.dart      # 移动端官方登录页与 WebView 会话
 ├── android/                       # Gradle、Manifest、Kotlin 入口和资源
 │   ├── app/build.gradle.kts
@@ -74,11 +74,13 @@ Pixiv-novel-extractor/
 │   └── README.md                  # Chromium / Firefox 加载方法
 ├── freebsd/
 │   └── shiori_server.py           # Python 标准库的本地 Web 服务
+├── integration_test/             # 各原生平台真实系统密钥库测试
 ├── test/
 │   ├── core_test.dart             # 链接、目录、会话和异常处理
 │   ├── request_queue_test.dart    # 并发、顺序、限流、缓存和取消
 │   ├── session_vault_test.dart    # 安全存储通道与失败处理
 │   ├── session_bridge_test.dart   # 主动开启、恢复、退出和过期会话
+│   ├── system_vault_test.dart     # 系统存储记录、过期和损坏处理
 │   ├── export_test.dart           # TXT、长篇 CJK PDF 与空导出校验
 │   ├── widget_test.dart           # 选章、界面交互和布局
 │   ├── test_local_server.py       # 服务访问范围、会话和路径测试
@@ -116,7 +118,7 @@ Pixiv-novel-extractor/
 
 手机通过应用内官方登录页建立会话；桌面通过浏览器扩展与本机连接页传递已获授权的会话。Web 版本需要随包 Python 服务，不能用普通静态托管替代。详细会话行为见 [使用方法](USAGE.zh-CN.md) 与 [扩展说明](../browser_extension/README.md)。
 
-Android 主动开启安全保存时，`bridge_native.dart` → `session_vault.dart` → Kotlin `SessionVault`。Keystore 负责 AES 密钥和加解密，密文写入应用的 `noBackupFilesDir`。APK 的发布签名与此设备会话密钥彼此独立。
+主动开启安全保存时，`bridge_native.dart` → `session_vault.dart` → 系统凭据库。Android 使用 Kotlin `SessionVault` 和 Keystore，密文在 `noBackupFilesDir`；其他原生平台通过安全存储库使用系统后端。Web 由 `shiori_server.py` 在本地服务侧保存，不在浏览器持久化 Cookie。APK 发布签名和会话加密互相独立。
 
 ## 生成目录
 

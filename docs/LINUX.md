@@ -8,7 +8,9 @@
 
 保留启动器旁的 `lib/` 和 `data/`。不要只复制 `shiori` 可执行文件。本包使用 Ubuntu 24.04 x64 工具链构建，其他发行版需要兼容的 GTK 3、glibc 和 C++ 运行库。
 
-首次遇到登录要求时，会打开系统浏览器中的本机连接页。请按浏览器扩展包 `shiori-browser-bridge.zip` 的说明加载 Shiori Bridge，确认连接后在 Pixiv 官方网站登录；也可在右上角菜单导入 PHPSESSID。会话仅保留在本机内存中。
+此外需要系统 `libsecret-1-0`（Debian / Ubuntu 可运行 `sudo apt install libsecret-1-0`）；构建源码还需要 `libsecret-1-dev`。
+
+首次遇到登录要求时，会打开系统浏览器中的本机连接页。请按浏览器扩展包 `shiori-browser-bridge.zip` 的说明加载 Shiori Bridge，确认连接后在 Pixiv 官方网站登录；也可在右上角菜单导入 PHPSESSID。默认仅保留内存会话；菜单可开启系统密钥环保存，重启后自动恢复，最长 30 天。此功能需要已解锁的 Secret Service（GNOME Keyring 或 KWallet）及 libsecret；见 [配置说明](SECURITY_AND_PERFORMANCE.md)。
 
 选择章节和 TXT / PDF 格式后导出，桌面保存对话框可选择文件位置。所选章节按原始目录顺序合并；失败时不会保存半份文件。
 

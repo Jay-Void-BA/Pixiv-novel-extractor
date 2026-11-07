@@ -76,6 +76,9 @@ Pixiv-novel-extractor/
 │   └── shiori_server.py           # Python 标准库的本地 Web 服务
 ├── test/
 │   ├── core_test.dart             # 链接、目录、会话和异常处理
+│   ├── request_queue_test.dart    # 并发、顺序、限流、缓存和取消
+│   ├── session_vault_test.dart    # 安全存储通道与失败处理
+│   ├── session_bridge_test.dart   # 主动开启、恢复、退出和过期会话
 │   ├── export_test.dart           # TXT、长篇 CJK PDF 与空导出校验
 │   ├── widget_test.dart           # 选章、界面交互和布局
 │   ├── test_local_server.py       # 服务访问范围、会话和路径测试
@@ -83,6 +86,7 @@ Pixiv-novel-extractor/
 │   └── extension_test.cjs         # 浏览器扩展授权与传递逻辑测试
 ├── tool/
 │   ├── browser_smoke.py           # Chromium 界面与文件下载集成检查
+│   ├── benchmark_client.dart      # 不使用真实账号的合成提取性能基准
 │   ├── native_linux_smoke.sh      # Linux 原生窗口启动检查
 │   ├── package_extension.py       # 生成 Chromium / Firefox 扩展包
 │   ├── package_web.py             # 打包 Web UI 与本地服务

@@ -47,9 +47,13 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: flutter pub get --enforce-lockfile
-      - run: dart format lib test tool/benchmark_client.dart
-      - run: |
+      - id: dart_format
+        run: dart format --output=none --set-exit-if-changed lib test tool/benchmark_client.dart
+      - name: Save formatting correction on failure
+        if: failure() && steps.dart_format.outcome == 'failure'
+        run: |
           mkdir -p build
+          dart format lib test tool/benchmark_client.dart
           git diff -- lib test tool/benchmark_client.dart > build/format.patch
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage --reporter expanded
@@ -279,7 +283,6 @@ jobs:
 
   android-vault:
     name: Android Keystore security tests
-    needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:

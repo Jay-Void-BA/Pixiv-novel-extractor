@@ -1,7 +1,9 @@
 package io.github.jayvoid.shiori
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.security.keystore.KeyInfo
+import android.system.Os
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
@@ -36,6 +38,8 @@ class SessionVaultTest {
         assertEquals(256, info.keySize)
         assertArrayEquals(arrayOf("GCM"), info.blockModes)
         assertEquals(context.noBackupFilesDir, file.parentFile)
+        assertEquals(0x180, Os.stat(file.path).st_mode and 0x1ff)
+        assertEquals(0, context.applicationInfo.flags and ApplicationInfo.FLAG_ALLOW_BACKUP)
     }
 
     @Test fun everyWriteUsesFreshNonceAndCiphertext() {
@@ -63,6 +67,16 @@ class SessionVaultTest {
             load(null)
             deleteEntry(SessionVault.KEY_ALIAS)
         }
+        assertEquals(true, vault.read()["discarded"])
+        assertCleared()
+    }
+
+    @Test fun replacedKeyCannotReadOldCiphertext() {
+        vault.write(session)
+        val old = file.readBytes()
+        vault.clear()
+        vault.write(session)
+        file.writeBytes(old)
         assertEquals(true, vault.read()["discarded"])
         assertCleared()
     }

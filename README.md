@@ -37,6 +37,8 @@ FreeBSD 不在 [Flutter 官方原生支持列表](https://docs.flutter.dev/refer
 
 ## 使用
 
+完整安装步骤、选章合并、登录和常见问题见 [中文使用方法](docs/USAGE.zh-CN.md)。
+
 1. 粘贴 `https://www.pixiv.net/novel/show.php?id=…`、`https://www.pixiv.net/novel/series/…` 或小说 ID，点击「读取作品」。
 2. 勾选所需章节，或输入范围后点击「应用」。
 3. 选择 TXT / PDF、文件名及元数据选项，点击导出。章节始终按原始目录顺序合并。

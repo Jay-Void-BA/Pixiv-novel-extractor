@@ -248,7 +248,11 @@ jobs:
           SHIORI_KEYSTORE_PASSWORD: ${{ secrets.SHIORI_KEYSTORE_PASSWORD }}
           SHIORI_KEY_ALIAS: ${{ secrets.SHIORI_KEY_ALIAS }}
           SHIORI_KEY_PASSWORD: ${{ secrets.SHIORI_KEY_PASSWORD }}
-        run: flutter build apk --release --no-pub
+        # Flutter issue #169336: --no-pub leaves dev-plugin registration in a
+        # release build. Let Flutter regenerate it, then enforce the same lock.
+        run: |
+          flutter build apk --release
+          git diff --exit-code -- pubspec.lock
       - name: Verify official APK and certificate pin
         if: steps.android_mode.outputs.mode == 'release'
         env:
@@ -288,6 +292,12 @@ jobs:
       - name: Remove restored key
         if: always()
         run: rm -rf "$RUNNER_TEMP/shiori-android-signing"
+      - uses: actions/upload-artifact@v4
+        if: success() && steps.android_mode.outputs.mode == 'release'
+        with:
+          name: android-signing-proof
+          path: dist/android-signing-verification.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: success() && steps.android_mode.outputs.mode == 'release'
         with:
